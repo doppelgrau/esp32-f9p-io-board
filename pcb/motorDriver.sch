@@ -4,7 +4,7 @@ EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
-Sheet 4 7
+Sheet 3 17
 Title "H-Bridge Motor Driver"
 Date ""
 Rev "0.1"
@@ -25,12 +25,15 @@ InB
 Text HLabel 850  2050 0    50   Input ~ 0
 PWM
 $Comp
-L Driver_Motor_own:VNH7070AS U5
+L Driver_Motor_own:VNH7070AS U3
 U 1 1 5C445805
 P 3300 1350
-AR Path="/5C443F4F/5C445805" Ref="U5"  Part="1" 
-AR Path="/5C443F5E/5C445805" Ref="U6"  Part="1" 
-F 0 "U6" H 3300 1666 50  0000 C CNN
+AR Path="/5C443F4F/5C445805" Ref="U3"  Part="1" 
+AR Path="/5C443F5E/5C445805" Ref="U?"  Part="1" 
+AR Path="/5C9CCBB2/5C445805" Ref="U5"  Part="1" 
+AR Path="/5C9DA548/5C445805" Ref="U?"  Part="1" 
+AR Path="/5C9DA551/5C445805" Ref="U9"  Part="1" 
+F 0 "U3" H 3300 1666 50  0000 C CNN
 F 1 "VNH7070AS" H 3300 1575 50  0000 C CNN
 F 2 "Package_SO:SOIC-16_3.9x9.9mm_P1.27mm" H 3250 1400 50  0001 C CNN
 F 3 "" H 3250 1400 50  0001 C CNN
@@ -56,14 +59,17 @@ Connection ~ 3500 2950
 Wire Wire Line
 	3500 2950 4150 2950
 $Comp
-L Device:C C13
+L Device:C C12
 U 1 1 5C44655B
 P 4150 900
-AR Path="/5C443F4F/5C44655B" Ref="C13"  Part="1" 
-AR Path="/5C443F5E/5C44655B" Ref="C15"  Part="1" 
-F 0 "C15" H 4265 946 50  0000 L CNN
+AR Path="/5C443F4F/5C44655B" Ref="C12"  Part="1" 
+AR Path="/5C443F5E/5C44655B" Ref="C?"  Part="1" 
+AR Path="/5C9CCBB2/5C44655B" Ref="C21"  Part="1" 
+AR Path="/5C9DA548/5C44655B" Ref="C?"  Part="1" 
+AR Path="/5C9DA551/5C44655B" Ref="C32"  Part="1" 
+F 0 "C12" H 4265 946 50  0000 L CNN
 F 1 "100n" H 4265 855 50  0000 L CNN
-F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder" H 4188 750 50  0001 C CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric" H 4188 750 50  0001 C CNN
 F 3 "~" H 4150 900 50  0001 C CNN
 	1    4150 900 
 	1    0    0    -1  
@@ -78,72 +84,26 @@ Wire Wire Line
 	4150 2950 5600 2950
 Wire Wire Line
 	3850 1650 5600 1650
-$Comp
-L Device:R R7
-U 1 1 5C446EC8
-P 1750 1450
-AR Path="/5C443F4F/5C446EC8" Ref="R7"  Part="1" 
-AR Path="/5C443F5E/5C446EC8" Ref="R10"  Part="1" 
-F 0 "R10" V 1543 1450 50  0000 C CNN
-F 1 "1k" V 1634 1450 50  0000 C CNN
-F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 1680 1450 50  0001 C CNN
-F 3 "~" H 1750 1450 50  0001 C CNN
-	1    1750 1450
-	0    1    1    0   
-$EndComp
-$Comp
-L Device:R R8
-U 1 1 5C446F11
-P 1750 1750
-AR Path="/5C443F4F/5C446F11" Ref="R8"  Part="1" 
-AR Path="/5C443F5E/5C446F11" Ref="R11"  Part="1" 
-F 0 "R11" V 1543 1750 50  0000 C CNN
-F 1 "1k" V 1634 1750 50  0000 C CNN
-F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 1680 1750 50  0001 C CNN
-F 3 "~" H 1750 1750 50  0001 C CNN
-	1    1750 1750
-	0    1    1    0   
-$EndComp
-$Comp
-L Device:R R9
-U 1 1 5C446F3B
-P 1750 2050
-AR Path="/5C443F4F/5C446F3B" Ref="R9"  Part="1" 
-AR Path="/5C443F5E/5C446F3B" Ref="R12"  Part="1" 
-F 0 "R12" V 1543 2050 50  0000 C CNN
-F 1 "1k" V 1634 2050 50  0000 C CNN
-F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder" V 1680 2050 50  0001 C CNN
-F 3 "~" H 1750 2050 50  0001 C CNN
-	1    1750 2050
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	850  1450 1600 1450
-Wire Wire Line
-	1900 1450 2750 1450
-Wire Wire Line
-	850  1750 1600 1750
 Wire Wire Line
 	1900 1750 1900 1550
 Wire Wire Line
 	1900 1550 2750 1550
 Wire Wire Line
-	1900 2050 2250 2050
-Wire Wire Line
 	2250 2050 2250 1650
 Wire Wire Line
 	2250 1650 2750 1650
 Wire Wire Line
-	1600 2050 850  2050
-Wire Wire Line
-	4150 750  5600 750 
+	4150 750  4950 750 
 $Comp
-L power:GND #PWR0103
+L power:GND #PWR?
 U 1 1 5C60F6E8
 P 5600 2950
-AR Path="/5C443F5E/5C60F6E8" Ref="#PWR0103"  Part="1" 
-AR Path="/5C443F4F/5C60F6E8" Ref="#PWR0101"  Part="1" 
-F 0 "#PWR0103" H 5600 2700 50  0001 C CNN
+AR Path="/5C443F5E/5C60F6E8" Ref="#PWR?"  Part="1" 
+AR Path="/5C443F4F/5C60F6E8" Ref="#PWR047"  Part="1" 
+AR Path="/5C9CCBB2/5C60F6E8" Ref="#PWR049"  Part="1" 
+AR Path="/5C9DA548/5C60F6E8" Ref="#PWR?"  Part="1" 
+AR Path="/5C9DA551/5C60F6E8" Ref="#PWR051"  Part="1" 
+F 0 "#PWR051" H 5600 2700 50  0001 C CNN
 F 1 "GND" H 5605 2777 50  0000 C CNN
 F 2 "" H 5600 2950 50  0001 C CNN
 F 3 "" H 5600 2950 50  0001 C CNN
@@ -151,16 +111,46 @@ F 3 "" H 5600 2950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:+12V #PWR0104
+L power:+12V #PWR?
 U 1 1 5C60F720
 P 5600 750
-AR Path="/5C443F5E/5C60F720" Ref="#PWR0104"  Part="1" 
-AR Path="/5C443F4F/5C60F720" Ref="#PWR0102"  Part="1" 
-F 0 "#PWR0104" H 5600 600 50  0001 C CNN
+AR Path="/5C443F5E/5C60F720" Ref="#PWR?"  Part="1" 
+AR Path="/5C443F4F/5C60F720" Ref="#PWR046"  Part="1" 
+AR Path="/5C9CCBB2/5C60F720" Ref="#PWR048"  Part="1" 
+AR Path="/5C9DA548/5C60F720" Ref="#PWR?"  Part="1" 
+AR Path="/5C9DA551/5C60F720" Ref="#PWR050"  Part="1" 
+F 0 "#PWR050" H 5600 600 50  0001 C CNN
 F 1 "+12V" H 5615 923 50  0000 C CNN
 F 2 "" H 5600 750 50  0001 C CNN
 F 3 "" H 5600 750 50  0001 C CNN
 	1    5600 750 
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	850  1450 2750 1450
+Wire Wire Line
+	850  1750 1900 1750
+Wire Wire Line
+	850  2050 2250 2050
+$Comp
+L Device:CP C13
+U 1 1 5C9C254B
+P 4950 900
+AR Path="/5C443F4F/5C9C254B" Ref="C13"  Part="1" 
+AR Path="/5C9CCBB2/5C9C254B" Ref="C22"  Part="1" 
+AR Path="/5C9DA548/5C9C254B" Ref="C?"  Part="1" 
+AR Path="/5C9DA551/5C9C254B" Ref="C33"  Part="1" 
+F 0 "C13" H 5068 946 50  0000 L CNN
+F 1 "560u" H 5068 855 50  0000 L CNN
+F 2 "Capacitor_SMD:CP_Elec_10x10.5" H 4988 750 50  0001 C CNN
+F 3 "~" H 4950 900 50  0001 C CNN
+	1    4950 900 
+	1    0    0    -1  
+$EndComp
+Connection ~ 4950 750 
+Wire Wire Line
+	4950 750  5600 750 
+Wire Wire Line
+	4950 1050 4150 1050
+Connection ~ 4150 1050
 $EndSCHEMATC

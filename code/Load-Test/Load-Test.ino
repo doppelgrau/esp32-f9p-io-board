@@ -7,8 +7,8 @@
 #define ANALOG_INPUT_RESERVE 34
 #define I2C_SDA 21
 #define I2C_SCL 22
-#define VNH_A_PWM 15
-#define VNH_A_E1 4
+#define VNH_A_PWM 4
+#define VNH_A_E1 0
 #define VNH_A_E2 2
 #define VNH_B_PWM 14
 #define VNH_B_E1 13
@@ -68,13 +68,24 @@ void loop() {
   int poti = ads.readADC_Differential_0_1();
   int ref = ads.readADC_Differential_2_3();
 
-  int output = (poti / (float)ref) * 256;
-  ledcWrite(0, output);
-  
-  digitalWrite(VNH_A_E1, HIGH);
-  digitalWrite(VNH_A_E2, LOW);
-  digitalWrite(VNH_B_E1, HIGH);
-  digitalWrite(VNH_B_E2, LOW);
+  int output = (poti / (float)ref) * 512 - 256;
+
+  if (output > 0) {
+
+    ledcWrite(0, output);
+
+    digitalWrite(VNH_A_E1, HIGH);
+    digitalWrite(VNH_A_E2, LOW);
+    digitalWrite(VNH_B_E1, HIGH);
+    digitalWrite(VNH_B_E2, LOW);
+  } else {
+    ledcWrite(0, output * -1);
+
+    digitalWrite(VNH_A_E1, LOW);
+    digitalWrite(VNH_A_E2, HIGH);
+    digitalWrite(VNH_B_E1, LOW);
+    digitalWrite(VNH_B_E2, HIGH);
+  }
 
   delay(100);
 }
