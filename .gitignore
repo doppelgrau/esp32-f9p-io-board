@@ -4,4 +4,4 @@
 
 # kicad
 pcb/*.bak
-
+pcb/*.kicad_pcb-bak
