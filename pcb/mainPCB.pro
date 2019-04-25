@@ -1,4 +1,4 @@
-update=Di 02 Apr 2019 01:22:17 CEST
+update=Do 25 Apr 2019 17:49:28 CEST
 version=1
 last_client=kicad
 [general]
@@ -34,7 +34,7 @@ LibDir=
 [schematic_editor]
 version=1
 PageLayoutDescrFile=
-PlotDirectoryName=../../../../../../../Schreibtisch/
+PlotDirectoryName=
 SubpartIdSeparator=0
 SubpartFirstId=65
 NetFmtName=
