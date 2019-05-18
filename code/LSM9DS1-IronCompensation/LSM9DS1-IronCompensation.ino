@@ -2,23 +2,11 @@
 
 
 // IO pins --------------------------------
-#define ANALOG_INPUT1 36
-#define ANALOG_INPUT2 39
-#define ANALOG_INPUT3 34
 #define I2C_SDA 32
 #define I2C_SCL 33
-#define VNH_A_PWM 4
-#define VNH_A_E1 0
-#define VNH_A_E2 2
-#define VNH_B_PWM 12
-#define F9P_RX 14
-#define F9P_TX 13
-#define RS232_RX 16
-#define RS232_TX 15
-#define I2CExtender
+
 // includes
 #include <Wire.h>
-#include "driver/gpio.h"
 #include <LSM9DS1_Registers.h>
 #include <SparkFunLSM9DS1.h>
 #include <LSM9DS1_Types.h>
@@ -26,7 +14,7 @@
 // global variables
 float hardIron[3];
 float softIron[3];
-float gyros[3];
+int gyros[3];
 
 // instances
 LSM9DS1 imu;
@@ -77,13 +65,26 @@ void setup() {
     Serial.println("Failed to communicate with LSM9DS1.");
   }
 
+  Serial.println("Leave board in position, no movement (gyro calibration)");
   Serial.println("Press to continue");
   while (Serial.read() == -1 ) {
     delay(1);
   }
 
+  // read 256 Values, then shift 8 bit for correction values
+  for (int i = 0; i < 256; i++) {
+    imu.readGyro();
+    gyros[0] += imu.gx;
+    gyros[1] += imu.gy;
+    gyros[2] += imu.gz;
+    delay(50);
+  }
+  gyros[0] = gyros[0] >> 8; 
+  gyros[1] = gyros[1] >> 8;
+  gyros[2] = gyros[2] >> 8;
+
   // Hard iron calibration
-  Serial.println("Slowly turn around all axis");
+  Serial.println("Now: Slowly turn around all axis (magnetometer - hard iron)");
   Serial.println("After enough turns press any key");
   int calData[3][2] = {{32767, -32767}, {32767, -32767}, {32767, -32767}};
 
@@ -121,7 +122,7 @@ void setup() {
   Serial.println("");
 
   // Soft iron calibration
-  Serial.println("Slowly turn around all axis");
+  Serial.println("Slowly turn around all axis (magnetometer - soft iron)");
   Serial.println("After enough turns press any key");
 
   int calData2[3][2] = {{32767, -32767}, {32767, -32767}, {32767, -32767}};
@@ -196,11 +197,11 @@ void printGyro()
   // If you want to print calculated values, you can use the
   // calcGyro helper function to convert a raw ADC value to
   // DPS. Give the function the value that you want to convert.
-  Serial.print(imu.calcGyro(imu.gx), 2);
+  Serial.print(imu.calcGyro(imu.gx - gyros[0]), 2);
   Serial.print(", ");
-  Serial.print(imu.calcGyro(imu.gy), 2);
+  Serial.print(imu.calcGyro(imu.gy - gyros[1]), 2);
   Serial.print(", ");
-  Serial.print(imu.calcGyro(imu.gz), 2);
+  Serial.print(imu.calcGyro(imu.gz - gyros[2]), 2);
   Serial.println(" deg/s");
 }
 
