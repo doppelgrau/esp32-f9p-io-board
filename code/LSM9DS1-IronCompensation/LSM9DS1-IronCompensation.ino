@@ -79,12 +79,12 @@ void setup() {
     gyros[2] += imu.gz;
     delay(50);
   }
-  gyros[0] = gyros[0] >> 8; 
+  gyros[0] = gyros[0] >> 8;
   gyros[1] = gyros[1] >> 8;
   gyros[2] = gyros[2] >> 8;
 
   // Hard iron calibration
-  Serial.println("Now: Slowly turn around all axis (magnetometer - hard iron)");
+  Serial.println("Now: Slowly turn around all axis (magnetometer - iron compensation)");
   Serial.println("After enough turns press any key");
   int calData[3][2] = {{32767, -32767}, {32767, -32767}, {32767, -32767}};
 
@@ -119,43 +119,22 @@ void setup() {
   hardIron[1] = (calData[1][0] + calData[1][1]) / 2;
   hardIron[2] = (calData[2][0] + calData[2][1]) / 2;
 
-  Serial.println("");
 
-  // Soft iron calibration
-  Serial.println("Slowly turn around all axis (magnetometer - soft iron)");
-  Serial.println("After enough turns press any key");
+  // soft iron
 
-  int calData2[3][2] = {{32767, -32767}, {32767, -32767}, {32767, -32767}};
-  while (Serial.read() == -1 ) {
-    delay(50);
-    // To read from the magnetometer, you must first call the
-    // readMag() function. When this exits, it'll update the
-    // mx, my, and mz variables with the most current data.
-    imu.readMag();
-    if ((imu.mx - hardIron[0]) < calData2[0][0]) {
-      calData2[0][0] = (imu.mx - hardIron[0]);
-    }
-    if ((imu.mx - hardIron[0]) > calData2[0][1]) {
-      calData2[0][1] = (imu.mx - hardIron[0]);
-    }
-    if ((imu.my - hardIron[1]) < calData2[1][0]) {
-      calData2[1][0] = (imu.my - hardIron[1]);
-    }
-    if ((imu.my - hardIron[1]) > calData2[1][1]) {
-      calData2[1][1] = (imu.my - hardIron[1]);
-    }
-    if ((imu.mz - hardIron[2]) < calData2[2][0]) {
-      calData2[2][0] = (imu.mz - hardIron[2]);
-    }
-    if ((imu.mz - hardIron[2]) > calData2[2][1]) {
-      calData2[2][1] = (imu.mz - hardIron[2]);
-    }
-  }
+  // apply the hard iron correction on the raw data
+  calData[0][0] -= hardIron[0];
+  calData[1][0] -= hardIron[1];
+  calData[2][0] -= hardIron[2];
+  calData[0][1] -= hardIron[0];
+  calData[1][1] -= hardIron[1];
+  calData[2][1] -= hardIron[2];
+
 
   // calculate soft iron data
-  softIron[0] = float((calData2[0][1] - calData2[0][0])) / 2;
-  softIron[1] = float((calData2[1][1] - calData2[1][0])) / 2;
-  softIron[2] = float((calData2[2][1] - calData2[2][0])) / 2;
+  softIron[0] = float((calData[0][1] - calData[0][0])) / 2;
+  softIron[1] = float((calData[1][1] - calData[1][0])) / 2;
+  softIron[2] = float((calData[2][1] - calData[2][0])) / 2;
 
   float avgDelta = (softIron[0] + softIron[1] + softIron[3]) / 3;
 
@@ -177,7 +156,7 @@ void loop() {
   // Call print attitude. The LSM9DS1's magnetometer x and y
   // axes are opposite to the accelerometer, so my and mx are
   // substituted for each other.
-  printAttitude(imu.ax, imu.ay, imu.az, -1 * ironCorrction(1,imu.my), -1 * ironCorrction(0,imu.mx), -1 * ironCorrction(2,imu.mz));
+  printAttitude(imu.ax, imu.ay, imu.az, -1 * ironCorrction(1, imu.my), -1 * ironCorrction(0, imu.mx), -1 * ironCorrction(2, imu.mz));
   Serial.println();
   delay(500);
 
@@ -240,11 +219,11 @@ void printMag()
   // If you want to print calculated values, you can use the
   // calcMag helper function to convert a raw ADC value to
   // Gauss. Give the function the value that you want to convert.
-  Serial.print(imu.calcMag(ironCorrction(0,imu.mx)), 2);
+  Serial.print(imu.calcMag(ironCorrction(0, imu.mx)), 2);
   Serial.print(", ");
-  Serial.print(imu.calcMag(ironCorrction(1,imu.my)), 2);
+  Serial.print(imu.calcMag(ironCorrction(1, imu.my)), 2);
   Serial.print(", ");
-  Serial.print(imu.calcMag(ironCorrction(2,imu.mz)), 2);
+  Serial.print(imu.calcMag(ironCorrction(2, imu.mz)), 2);
   Serial.println(" gauss");
 }
 
