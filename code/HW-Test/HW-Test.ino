@@ -14,6 +14,9 @@
 #define RS232_RX 16
 #define RS232_TX 15
 #define I2CExtender
+#define CAN_TX 5
+#define CAN_RX 35
+
 // includes
 #include "Adafruit_ADS1015.h"
 #include <Wire.h>
@@ -76,6 +79,11 @@ void setup() {
   gpio_set_direction(GPIO_NUM_15, GPIO_MODE_OUTPUT);
   Serial1.begin(9600, SERIAL_8N1, RS232_RX, RS232_TX);
 
+  // PINs for CAN
+  pinMode(CAN_RX, INPUT);
+  gpio_pad_select_gpio(GPIO_NUM_35);
+  gpio_set_direction(GPIO_NUM_35, GPIO_MODE_INPUT);
+  pinMode(CAN_TX, OUTPUT);
 
   Serial.println("Press to continue");
   while (Serial.read() == -1 ) {
