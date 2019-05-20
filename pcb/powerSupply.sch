@@ -137,17 +137,6 @@ F 3 "~" H 1650 1000 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Device:LED D6
-U 1 1 5C98DA28
-P 1950 2700
-F 0 "D6" H 1941 2916 50  0000 C CNN
-F 1 "LED/red" H 1941 2825 50  0000 C CNN
-F 2 "Capacitor_SMD:C_0805_2012Metric" H 1950 2700 50  0001 C CNN
-F 3 "~" H 1950 2700 50  0001 C CNN
-	1    1950 2700
-	1    0    0    -1  
-$EndComp
-$Comp
 L Device:R R14
 U 1 1 5C98DB53
 P 1800 3050
@@ -193,10 +182,6 @@ F 3 "~" H 10200 3850 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	1800 1450 1800 1000
-Wire Wire Line
-	2100 2700 2850 2700
-Wire Wire Line
-	1800 2700 1800 2900
 $Comp
 L Regulator_Switching_own:V78E05-1000-SMT-TR PS1
 U 1 1 5C999BE8
@@ -353,9 +338,6 @@ Wire Wire Line
 Connection ~ 1800 4650
 Wire Wire Line
 	1800 4650 2950 4650
-Connection ~ 1800 2700
-Wire Wire Line
-	1800 1750 1800 2700
 Wire Wire Line
 	8400 4650 9150 4650
 Wire Wire Line
@@ -380,4 +362,6 @@ Wire Wire Line
 Connection ~ 10200 4650
 Wire Wire Line
 	10200 4650 10600 4650
+Wire Wire Line
+	1800 1750 1800 2900
 $EndSCHEMATC
