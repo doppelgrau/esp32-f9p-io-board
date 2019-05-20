@@ -576,4 +576,8 @@ Text Label 2550 3650 0    50   ~ 0
 RD+
 Text Label 2550 3750 0    50   ~ 0
 TD-
+Text HLabel 10050 3250 2    50   BiDi ~ 0
+MDIO
+Wire Wire Line
+	10050 3250 6100 3250
 $EndSCHEMATC
