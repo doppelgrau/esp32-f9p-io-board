@@ -1,4 +1,30 @@
 
+/*
+ * External connections during the test: 
+ *  - 14V external power (J4)
+ *  - USB connected and terminal open
+ *  - Jumper on J2 (after powerup)
+ *  - short RX/TX on J9
+ *  - RS232 plug that shortens RX/TX (pin 2 and 3)
+ *  - M1 - I1, I2:
+ *    J4-M1A / J1-I1 <-> 20 Ohm <-> J4-M1B / J1-I2
+ *    + J4-M1A connected with J1-I1
+ *    + J4-M1B connected with J1-I2
+ *    + J4-M1A connected to a 20Ohm resistor to J4-M1B
+*  - M2 - I3:
+ *    J3-M2A <-> 10 Ohm <-> J1-I3 <-> 10 Ohm <-> J3-MB 
+ *    + J3-M2A connected with 10 Ohm resistor
+ *    + J3-M2B connected with 10 Ohm resistor
+ *    + J4-M1B is connected with both resistors
+ *  - Relay K2 / ADS1115
+ *    + J5-A0 <-> J5-GND
+ *    + J5-A1 <-> J3-NC
+ *    + J5-5V <-> J3-COM
+ *    + J5-A2 <-> J3-NO
+ *  - Ethernet connected to a network with a DHCP server
+ * 
+ */
+
 // IO pins --------------------------------
 #define ANALOG_INPUT1 36
 #define ANALOG_INPUT2 39
@@ -6,16 +32,22 @@
 #define I2C_SDA 32
 #define I2C_SCL 33
 #define VNH_A_PWM 4
-#define VNH_A_E1 0
-#define VNH_A_E2 2
 #define VNH_B_PWM 12
-#define F9P_RX 14
-#define F9P_TX 13
+#define F9P_RX 13
+#define F9P_TX 14
 #define RS232_RX 16
 #define RS232_TX 15
-#define I2CExtender
+#define UART_RX 2
+#define UART_TX 0
 #define CAN_TX 5
 #define CAN_RX 35
+// Ethernet
+#define ETH_CLK_MODE    ETH_CLOCK_GPIO17_OUT
+#define ETH_POWER_PIN   -1
+#define ETH_TYPE        ETH_PHY_LAN8720
+#define ETH_ADDR        0
+#define ETH_MDC_PIN     23
+#define ETH_MDIO_PIN    18
 
 // includes
 #include "Adafruit_ADS1015.h"
@@ -24,13 +56,16 @@
 #include <LSM9DS1_Registers.h>
 #include <SparkFunLSM9DS1.h>
 #include <LSM9DS1_Types.h>
+#include <ETH.h>
 
 // global variables
 int check = 1;
-int state = 0;
+byte byteRead;
+byte sentByte = 'U';
+byte ethernetStatus = -1;
+
 
 // instances
-Adafruit_ADS1115 ads = Adafruit_ADS1115(0x48);
 LSM9DS1 imu;
 
 void setup() {
@@ -40,15 +75,10 @@ void setup() {
   Serial.println("ESP32 - F9P - IO-Board Tester");
   Serial.println("-------------------------------------");
   Serial.println("");
-  Serial.println("Each test will be repeated until any");
-  Serial.println("key is pressed (over serial)");
-  Serial.println("");
   // Setup IO
 
   // initialize PINs for VNHs
   pinMode(VNH_A_PWM, OUTPUT);
-  pinMode(VNH_A_E1, OUTPUT);
-  pinMode(VNH_A_E2, OUTPUT);
   pinMode(VNH_B_PWM, OUTPUT);
 
   // analog inputs - set input to explicit disable any pullups
@@ -56,28 +86,17 @@ void setup() {
   pinMode(ANALOG_INPUT2, INPUT);
   pinMode(ANALOG_INPUT3, INPUT);
   analogReadResolution(10); // Default of 12 is not very linear. Recommended to use 10 or 11 depending on needed resolution.
-  analogSetAttenuation(ADC_6db); // Default is 11db which is very noisy. Recommended to use 2.5 or 6.
+  analogSetAttenuation(ADC_11db); // Default is 11db which is very noisy. But needed for full scale range  Recommended to use 2.5 or 6.
 
-  // I2C
-  Wire.begin(I2C_SDA, I2C_SCL, 400000);
-
-  // PWM for outputs
-  //   PWM-Channel
-  ledcSetup(0, 1500, 8);
-  //   IO-PINs
-  ledcAttachPin(VNH_A_PWM, 0);
-  ledcAttachPin(VNH_B_PWM, 0);
-
-  // Serial for F9P
-  // Serial for RS232
+  // Serial for F9P, RS232, Light
   gpio_pad_select_gpio(GPIO_NUM_13);
   gpio_set_direction(GPIO_NUM_13, GPIO_MODE_OUTPUT);
-  Serial2.begin(38400, SERIAL_8N1, F9P_RX, F9P_TX);
-
-  // Serial for RS232
   gpio_pad_select_gpio(GPIO_NUM_15);
+  gpio_pad_select_gpio(GPIO_NUM_16);
   gpio_set_direction(GPIO_NUM_15, GPIO_MODE_OUTPUT);
-  Serial1.begin(9600, SERIAL_8N1, RS232_RX, RS232_TX);
+  gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
+  gpio_pad_select_gpio(GPIO_NUM_2);
+  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 
   // PINs for CAN
   pinMode(CAN_RX, INPUT);
@@ -85,6 +104,7 @@ void setup() {
   gpio_set_direction(GPIO_NUM_35, GPIO_MODE_INPUT);
   pinMode(CAN_TX, OUTPUT);
 
+  Serial.println("Short J2");
   Serial.println("Press to continue");
   while (Serial.read() == -1 ) {
     delay(1);
@@ -92,45 +112,24 @@ void setup() {
 
 }
 
-void i2cscan() {
-  byte error, address;
-  int nDevices;
+void i2cTestAdress(byte address) {
+  byte error;
 
-  nDevices = 0;
-  for (address = 1; address < 127; address++ )
-  {
     // The i2c_scanner uses the return value of
     // the Write.endTransmisstion to see if
     // a device did acknowledge to the address.
     Wire.beginTransmission(address);
     error = Wire.endTransmission();
 
-    if (error == 0)
-    {
-      Serial.print("I2C device found at address 0x");
-      if (address < 16)
-        Serial.print("0");
-      Serial.print(address, HEX);
-      Serial.print(" - ");
-      Serial.print(address);
-
-      Serial.println("  !");
-
-      nDevices++;
-    }
-    else if (error == 4)
-    {
-      Serial.print("Unknown error at address 0x");
-      if (address < 16)
-        Serial.print("0");
-      Serial.println(address, HEX);
+    if (error == 0) {
+      Serial.println("Found");
+    } else if (error == 4) {
+      Serial.println("Unknown error");
+    } else {
+      Serial.println("Not found");
     }
   }
-  if (nDevices == 0)
-    Serial.println("No I2C devices found\n");
-  else
-    Serial.println("done\n");
-}
+
 
 uint8_t getByteI2C(int address, int i2cregister) {
   Wire.beginTransmission(address);
@@ -151,107 +150,74 @@ uint8_t setByteI2C(int address, byte i2cregister, byte value) {
 void loop() {
   switch (check) {
     case 1:
-      Serial.println("Scann I2C");
-      i2cscan();
+      Serial.println("");
+      Serial.println("Uart0 - USB:        ok");
       break;
-    case 2: {
-        int reading = analogRead(ANALOG_INPUT1);
-        String output = "Analog Input 1: ";
-        output += reading;
-        reading = analogRead(ANALOG_INPUT2);
-        output += " - 2: ";
-        output += reading;
-        reading = analogRead(ANALOG_INPUT3);
-        output += " - 3: " ;
-        output += reading;
-        Serial.println(output);
-      } break;
-    case 3: {
-        int temp = 0;
-        String output = "ADS diff-0/1: ";
-        temp = ads.readADC_Differential_0_1();
-        output += temp;
-        output += " - 2: ";
-        temp = ads.readADC_SingleEnded(2);
-        output += temp;
-        output += " - 3: ";
-        temp = ads.readADC_SingleEnded(3);
-        output += temp;
-        Serial.println(output);
-      } break;
-    case 4: {
-        String output = "VNH7070 A - PWM: ";
-        int temp = state % 256;
-        ledcWrite(0, temp);
-        output += temp;
-        output += " - direction: ";
-        temp = (state / 256) % 2;
-        if (temp == 0) {
-          digitalWrite(VNH_A_E1, HIGH);
-          digitalWrite(VNH_A_E2, LOW);
-        } else {
-          digitalWrite(VNH_A_E2, HIGH);
-          digitalWrite(VNH_A_E1, LOW);
-        }
-        output += temp;
-        Serial.println(output);
-        state += 5;
-      } break;
-    case 5: {
-        if (state == 0) {
-          Serial.println("");
-          Serial.print("F9P NMEA: ");
-          state = 1;
-        }
-        while (Serial2.available()) {
-          byte c = Serial2.read();
-          //Serial2.print(c);
-          if (c == 0x0D) {
-            state = 0;
-          }
-          Serial.print((char)c);
-        }
-      } break;
-    case 6: {
-        if (state == 0) {
-          Serial.println("");
-          Serial.print("sending RS232: ");
-          state = 1;
-        }
-        Serial.println("Hello Computer");
-        Serial1.println("Hello Serial 3");
-      } break;
-    case 7: {
-        Serial.println("Konfigure the FXL6408");
-        // direction (Input/Output)
-        setByteI2C(0x43, 0x03, 0b11101111);
-        // disable High-Z on outputs
-        setByteI2C(0x43, 0x07, 0b00010000);
-        // en-/disable Pullup/downs
-        setByteI2C(0x43, 0x0B, 0b00010000);
-        // set direction of the pull
-        setByteI2C(0x43, 0x0D, 0b00010000);
-        check += 1;
-      } break;
+    case 2:
+      Serial.print("Uart1 - F9P:        ");
+      Serial1.begin(38400, SERIAL_8N1, F9P_RX, F9P_TX);
+      // make sure queue is empty
+      while (Serial1.available()) {
+        byteRead = Serial1.read();
+      }
+      Serial1.write(sentByte);
+      delay(50);
+      byteRead = Serial1.read();
+      if (byteRead == sentByte) {
+        Serial.println("ok");
+      } else {
+        Serial.println("error");
+      }
+      break;
+    case 3:
+      Serial.print("Uart2 - RS232:      ");
+      Serial2.begin(38400, SERIAL_8N1, RS232_RX, RS232_TX);
+      // make sure queue is empty
+      while (Serial2.available()) {
+        byteRead = Serial2.read();
+      }
+      Serial2.write(sentByte);
+      delay(50);
+      byteRead = Serial2.read();
+      if (byteRead == sentByte) {
+        Serial.println("ok");
+      } else {
+        Serial.println("error");
+      }
+      break;
+    case 4:
+      Serial.print("Uart2 - J2 / Light: ");
+      Serial2.begin(19200, SERIAL_8N1, UART_RX, UART_TX);
+      // make sure queue is empty
+      while (Serial2.available()) {
+        byteRead = Serial2.read();
+      }
+      Serial2.write(sentByte);
+      delay(50);
+      byteRead = Serial2.read();
+      if (byteRead == sentByte) {
+        Serial.println("ok");
+      } else {
+        Serial.println("error");
+      }
+      break;    
+    case 5:
+      Serial.println("");
+      // enable I2C interface
+      Wire.begin(I2C_SDA, I2C_SCL, 400000);
+      Serial.println("Checking I2C - Bus: ");
+      Serial.print("  FXL6408 port extender (0x43): ");
+      i2cTestAdress(0x43);
+      Serial.print("  ADS1115               (0x1C): ");
+      i2cTestAdress(0x48);
+      Serial.print("  LSM9DS1 Magnetometer  (0x1C): ");
+      i2cTestAdress(0x1C);
+      Serial.print("  LSM9DS1 Accelerometer (0x6A): ");
+      i2cTestAdress(0x6A);      
+      break;
     case 8: {
-        Serial.print("FXL6408 Input Switch: ");
-        // input state
-        int value = getByteI2C(0x43, 0x0F);
-        // only intrested in gpio4
-        value = value & 0b00010000;
-        value = value >> 4;
-        Serial.print(value);
-        Serial.print(" - Output (M2B, M2A, Relais, Input, 3x LED, Ethernet-Enable): ");
-
-        // generate Test-Pattern for IOs
-        value = state;
-        value = value & 0b11101111;
-        setByteI2C(0x43, 0x05, value);
-        Serial.println(value, BIN);
-        state = (state + 1) % 256;
-      } break;
-    case 9: {
-        Serial.println("Konfigure the LSM9DS1");
+        Serial.println("");
+        Serial.print("Konfigure the LSM9DS1: ");
         imu.settings.device.commInterface = IMU_MODE_I2C;
         imu.settings.device.mAddress = 0x1C;
         imu.settings.device.agAddress = 0x6A;
@@ -278,13 +244,13 @@ void loop() {
         // the magnetometer.
         imu.settings.mag.lowPowerEnable = false;
         if (!imu.begin()) {
-          Serial.println("Failed to communicate with LSM9DS1.");
-          check += 2;
-        } else {
+          Serial.println("Failed");
           check += 1;
+        } else {
+          Serial.println("Ok");
         }
       } break;
-    case 10: {
+    case 9: {
         printGyro();  // Print "G: gx, gy, gz"
         printAccel(); // Print "A: ax, ay, az"
         printMag();   // Print "M: mx, my, mz"
@@ -296,20 +262,257 @@ void loop() {
         printAttitude(imu.ax, imu.ay, imu.az, -imu.my, -imu.mx, imu.mz);
         Serial.println();
       } break;
-    default:
-      // no more checks
-      Serial.println("Finished");
-      break;
+    case 10: {
+        Serial.println("");
+        Serial.println("Configure the FXL6408");
+        // direction (Input/Output)
+        setByteI2C(0x43, 0x03, 0b11111110);
+        // disable High-Z on outputs
+        setByteI2C(0x43, 0x07, 0b00000001);
+        // en-/disable Pullup/downs
+        setByteI2C(0x43, 0x0B, 0b00000001);
+        // set direction of the pull
+        setByteI2C(0x43, 0x0D, 0b00000001);
+        // enable gpio 2 (LED)
+        setByteI2C(0x43, 0x05, 0b00000100);
+        Serial.println("LED on, press SW1 to disable LED and continue");
+        
+        // input state
+        int value = getByteI2C(0x43, 0x0F);
+        // only intrested in gpio0
+        value = value & 0b00000001;
+        while (value == 1) {
+          delay(25);
+          value = getByteI2C(0x43, 0x0F);
+          // only intrested in gpio0
+          value = value & 0b00000001;
+        }
+        // LED off
+        setByteI2C(0x43, 0x05, 0b00000000);
+      } break;
+   case 11: {
+        Serial.println("");
+        Serial.println("Test M1 (2xVNH7070AS) and inputs I1, I2");
+        // Set PWM-Signal
+        ledcSetup(0, 1500, 8);
+        ledcAttachPin(VNH_A_PWM, 0);
+        
+        // PWM 100%, both off => GND
+        ledcWrite(0, 255);
+        setByteI2C(0x43, 0x05, 0b00000000);
+        delay(200);
+        Serial.print("  A off, B off, PWM 255, I1 < 10,   I2 < 10:   ");
+        if (analogRead(ANALOG_INPUT1) > 10 || analogRead(ANALOG_INPUT2) > 10) {
+          Serial.print("Error - I1: ");
+          Serial.print(analogRead(ANALOG_INPUT1));
+          Serial.print("  I2: ");
+          Serial.println(analogRead(ANALOG_INPUT2));
+        } else {
+          Serial.println("Ok");
+        }
+
+        // PWM 50%, both active => 12V
+        ledcWrite(0, 128);
+        setByteI2C(0x43, 0x05, 0b11000000);
+        delay(200);
+        Serial.print("  A on,  B on,  PWM 128, I1 > 750,  I2 > 750:  ");
+        if (analogRead(ANALOG_INPUT1) < 750 || analogRead(ANALOG_INPUT2) < 750) {
+          Serial.print("Error - I1: ");
+          Serial.print(analogRead(ANALOG_INPUT1));
+          Serial.print("  I2: ");
+          Serial.println(analogRead(ANALOG_INPUT2));
+        } else {
+          Serial.println("Ok");
+        }
+
+        // PWM 100%, A active
+        ledcWrite(0, 255);
+        setByteI2C(0x43, 0x05, 0b01000000);
+        delay(200);
+        Serial.print("  A on,  B off, PWM 255, I1 > 750,  I2 < 10:   ");
+        if (analogRead(ANALOG_INPUT1) < 750 || analogRead(ANALOG_INPUT2) > 10) {
+          Serial.print("Error - I1: ");
+          Serial.print(analogRead(ANALOG_INPUT1));
+          Serial.print("  I2: ");
+          Serial.println(analogRead(ANALOG_INPUT2));
+        } else {
+          Serial.println("Ok");
+        }
+
+        // PWM 100%, B active
+        ledcWrite(0, 255);
+        setByteI2C(0x43, 0x05, 0b10000000);
+        delay(200);
+        Serial.print("  A off, B on,  PWM 255, I1 < 10,   I2 > 750:  ");
+        if (analogRead(ANALOG_INPUT1) > 10 || analogRead(ANALOG_INPUT2) < 750) {
+          Serial.print("Error - I1: ");
+          Serial.print(analogRead(ANALOG_INPUT1));
+          Serial.print("  I2: ");
+          Serial.println(analogRead(ANALOG_INPUT2));
+        } else {
+          Serial.println("Ok");
+        }
+
+       // PWM 0%, both disabled
+       setByteI2C(0x43, 0x05, 0b00000000);
+       delay(10);
+       ledcWrite(0, 0);
+
+      } break;
+
+   case 12: {
+        Serial.println("");
+        Serial.println("Test M2 (VNH7070AS) and input I3");
+        // Set PWM-Signal
+        ledcSetup(1, 2500, 8);
+        ledcAttachPin(VNH_B_PWM, 1);
+        
+        // PWM 100%, both off => GND
+        ledcWrite(1, 255);
+        setByteI2C(0x43, 0x05, 0b00000000);
+        delay(200);
+        Serial.print("  A off, B off, PWM 255, I3  < 10:  ");
+        if (analogRead(ANALOG_INPUT3) > 10) {
+          Serial.print("Error - I3: ");
+          Serial.println(analogRead(ANALOG_INPUT3));
+        } else {
+          Serial.println("Ok");
+        }
+
+        // PWM 50%, both active => 12V
+        ledcWrite(1, 128);
+        setByteI2C(0x43, 0x05, 0b00110000);
+        delay(200);
+        Serial.print("  A on,  B on,  PWM 128, I3  > 750: ");
+        if (analogRead(ANALOG_INPUT3) < 750) {
+          Serial.print("Error - I3: ");
+          Serial.println(analogRead(ANALOG_INPUT3));
+        } else {
+          Serial.println("Ok");
+        }
+
+        // PWM 100%, A active
+        ledcWrite(1, 255);
+        setByteI2C(0x43, 0x05, 0b00100000);
+        delay(200);
+        Serial.print("  A on,  B off, PWM 255, I3 ca 400: ");
+        if (analogRead(ANALOG_INPUT3)  < 350 || analogRead(ANALOG_INPUT3)  > 450) {
+          Serial.print("Error - I3: ");
+          Serial.println(analogRead(ANALOG_INPUT3));
+        } else {
+          Serial.println("Ok");
+        }
+
+        // PWM 100%, B active
+        ledcWrite(1, 255);
+        setByteI2C(0x43, 0x05, 0b00010000);
+        delay(200);
+        Serial.print("  A off, B on,  PWM 255, I3 ca 400: ");
+        if (analogRead(ANALOG_INPUT3)  < 350 || analogRead(ANALOG_INPUT3)  > 450) {
+          Serial.print("Error - I3: ");
+          Serial.println(analogRead(ANALOG_INPUT3));
+        } else {
+          Serial.println("Ok");
+        }
+
+       // PWM 0%, both disabled
+       setByteI2C(0x43, 0x05, 0b00000000);
+       delay(10);
+       ledcWrite(1, 0);
+
+      } break;
+
+   case 13: {
+        Serial.println("");
+        Serial.println("Test Relay K2 and ADS1115");
+
+        // "init"
+        Adafruit_ADS1115 ads = Adafruit_ADS1115(0x48);
+        int a0,a1,a2,a3;
+
+        // relay off
+        setByteI2C(0x43, 0x05, 0b00000000);
+        Serial.print("  Relay off, A0:   < 50,   A1  =  A3,      100 < A2 < 20000, A3 > 26000 ");
+        delay(200);
+        // read data
+        a0 = ads.readADC_SingleEnded(0);
+        a1 = ads.readADC_SingleEnded(1);
+        a2 = ads.readADC_SingleEnded(2);
+        a3 = ads.readADC_SingleEnded(3); 
+        if (a0 > 50 || abs(a1 - a3) > 150 || a2 < 100 || a2 > 20000 || a3 < 26000 ) {
+          Serial.print("Error - a0: ");
+          Serial.print(a0);
+          Serial.print(" - a1: ");
+          Serial.print(a1);
+          Serial.print(" - a2: ");
+          Serial.print(a2);
+          Serial.print(" - a3: ");
+          Serial.println(a3);
+        } else {
+          Serial.println("Ok");
+        }
+
+        // relay on
+        setByteI2C(0x43, 0x05, 0b00001000);
+        Serial.print("  Relay on,  A0:   < 50, 100 < A1 < 20000,    A2 = A3,       A3 > 26000 ");
+        delay(200);
+        // read data
+        a0 = ads.readADC_SingleEnded(0);
+        a1 = ads.readADC_SingleEnded(1);
+        a2 = ads.readADC_SingleEnded(2);
+        a3 = ads.readADC_SingleEnded(3); 
+        if (a0 > 50 || abs(a2 - a3) > 150 || a1 < 100 || a1 > 20000 || a3 < 26000 ) {
+          Serial.print("Error - a0: ");
+          Serial.print(a0);
+          Serial.print(" - a1: ");
+          Serial.print(a1);
+          Serial.print(" - a2: ");
+          Serial.print(a2);
+          Serial.print(" - a3: ");
+          Serial.println(a3);
+        } else {
+          Serial.println("Ok");
+        }
+        delay(100);
+        setByteI2C(0x43, 0x05, 0b00000000);
+
+      } break;
+   case 14: {
+        Serial.println("");
+        Serial.println("Test Ethernet connection (cable)");
+
+        // "init"
+        // enable the LAN8720
+        setByteI2C(0x43, 0x05, 0b00000010);
+
+        // Start Network
+        WiFi.onEvent(EtherEvent);
+        ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
+
+        int counter = 0;
+        byte lastState = -1;
+        // wait until started
+        while (counter < 1000) {
+          delay(10);
+          if (ethernetStatus == 0 && lastState != 0) {
+            lastState = 0;
+            Serial.print("  started - ");
+          }
+          if (ethernetStatus == 1 && lastState != 1) {
+            lastState = 1;
+            Serial.print("connected - ");
+          }
+          if (ethernetStatus == 2 && lastState != 2) {
+            lastState = 2;
+            Serial.println("IP adress: passed");
+            counter += 10000;
+          }        
+          
+        }
+      } break;
   }
-  if (Serial.read() == -1 ) {
-    delay(333);
-  } else {
+    delay(100);
     check += 1;
-    state = 0;
-    // Reset some PINs
-    digitalWrite(VNH_A_E1, LOW);
-    digitalWrite(VNH_A_E2, LOW);
-  }
 
 }
 
@@ -548,4 +751,28 @@ uint16_t initLSM9DS1()
   setupTemperature(); // Set up temp sensor parameter
 
   return imu.begin();
+}
+
+void EtherEvent(WiFiEvent_t event) {
+  switch (event) {
+    case SYSTEM_EVENT_ETH_START:
+      ethernetStatus = 0;
+      //set eth hostname here
+      ETH.setHostname("esp32-ethernet");
+      break;
+    case SYSTEM_EVENT_ETH_CONNECTED:
+      ethernetStatus = 1;
+      break;
+    case SYSTEM_EVENT_ETH_GOT_IP:
+      ethernetStatus = 2;
+      break;
+    case SYSTEM_EVENT_ETH_DISCONNECTED:
+      ethernetStatus = 0;
+      break;
+    case SYSTEM_EVENT_ETH_STOP:
+      ethernetStatus = -1;
+      break;
+    default:
+      break;
+  }
 }
