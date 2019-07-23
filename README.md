@@ -14,7 +14,7 @@ This PCB is a versatile IO plattform that provides computing power (ESP32) and I
 - Arduino headers for the F9P (uart 1 of the F9P connected)
 - Serial interfaces
     - one uart (IO13/14) on the Arduino headers for the F9P
-    - one uart (IO0/2) next to the arduino headers on two pins (J2) for the new simpleRTK2Blight 
+    - one uart (IO0/2) next to the arduino headers on two pins (J2) for the new simpleRTK2Blight. Since the two pins have a special meaning during boot, pulling RX to GND during startup results in the ESP going into programming mode.
     - one uart (IO15/16) for RS232 on the D-Sub connector J16
     - one uart (IO1/3) on the USB-Uart converter (J14) - Also supports programming with "RTS/DTR"
 - I2C (IO32/35)
