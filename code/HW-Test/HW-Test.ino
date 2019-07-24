@@ -1,10 +1,9 @@
-
 /*
  * External connections during the test: 
  *  - 14V external power (J4)
  *  - USB connected and terminal open
  *  - Jumper on J2 (after powerup)
- *  - short RX/TX on J9
+ *  - short RX/TX on J9 (after powerup)
  *  - RS232 plug that shortens RX/TX (pin 2 and 3)
  *  - M1 - I1, I2:
  *    J4-M1A / J1-I1 <-> 20 Ohm <-> J4-M1B / J1-I2
@@ -23,6 +22,9 @@
  *    + J5-A2 <-> J3-NO
  *  - Ethernet connected to a network with a DHCP server
  * 
+ * 
+ *  Uses
+ *    + arduino-can: https://github.com/sandeepmistry/arduino-CAN
  */
 
 // IO pins --------------------------------
@@ -57,6 +59,7 @@
 #include <SparkFunLSM9DS1.h>
 #include <LSM9DS1_Types.h>
 #include <ETH.h>
+#include <CAN.h>
 
 // global variables
 int check = 1;
@@ -91,10 +94,12 @@ void setup() {
   // Serial for F9P, RS232, Light
   gpio_pad_select_gpio(GPIO_NUM_13);
   gpio_set_direction(GPIO_NUM_13, GPIO_MODE_OUTPUT);
+  
   gpio_pad_select_gpio(GPIO_NUM_15);
   gpio_pad_select_gpio(GPIO_NUM_16);
   gpio_set_direction(GPIO_NUM_15, GPIO_MODE_OUTPUT);
-  gpio_set_direction(GPIO_NUM_15, GPIO_MODE_INPUT);
+  gpio_set_direction(GPIO_NUM_16, GPIO_MODE_INPUT);
+  
   gpio_pad_select_gpio(GPIO_NUM_2);
   gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 
@@ -104,7 +109,7 @@ void setup() {
   gpio_set_direction(GPIO_NUM_35, GPIO_MODE_INPUT);
   pinMode(CAN_TX, OUTPUT);
 
-  Serial.println("Short J2");
+  Serial.println("Short J2 and pull up RS232");
   Serial.println("Press to continue");
   while (Serial.read() == -1 ) {
     delay(1);
@@ -166,23 +171,30 @@ void loop() {
       if (byteRead == sentByte) {
         Serial.println("ok");
       } else {
-        Serial.println("error");
-      }
+        Serial.print("error. received: ");
+        Serial.println((char)byteRead);      }
       break;
     case 3:
       Serial.print("Uart2 - RS232:      ");
-      Serial2.begin(38400, SERIAL_8N1, RS232_RX, RS232_TX);
+      Serial2.begin(9600, SERIAL_8N1, RS232_RX, RS232_TX);
+      // for waking up
+      delay(10);
+      Serial2.write('t');
+      delay(5);
       // make sure queue is empty
       while (Serial2.available()) {
         byteRead = Serial2.read();
       }
-      Serial2.write(sentByte);
+      // wait a moment so uart <-> RS232 can wake up
       delay(50);
+      Serial2.write(sentByte);
+      delay(20);
       byteRead = Serial2.read();
       if (byteRead == sentByte) {
         Serial.println("ok");
       } else {
-        Serial.println("error");
+        Serial.print("error. received: ");
+        Serial.println((char)byteRead);
       }
       break;
     case 4:
@@ -198,8 +210,8 @@ void loop() {
       if (byteRead == sentByte) {
         Serial.println("ok");
       } else {
-        Serial.println("error");
-      }
+        Serial.print("error. received: ");
+        Serial.println((char)byteRead);      }
       break;    
     case 5:
       Serial.println("");
@@ -509,6 +521,52 @@ void loop() {
           }        
           
         }
+      } break;
+   case 15: {
+        Serial.println("");
+        Serial.println("Test CAN interface");
+
+        // "init"
+        // configure CAN-interface
+        CAN.setPins(CAN_RX, CAN_TX);
+
+        // start the CAN bus at 500 kbps
+        if (!CAN.begin(500E3)) {
+          Serial.println("Starting CAN failed!");
+          break;
+        }
+
+        // send a message
+        Serial.print("  Sending ... ");
+        CAN.beginPacket(0x10);
+        CAN.write('s');
+        CAN.write('y');
+        CAN.write('n');
+        CAN.endPacket();
+        Serial.println("done");
+
+        Serial.print("  Try to receive ... ");
+        // other side should take about 100ms
+        delay(150);
+
+        int packetSize = CAN.parsePacket();
+
+        if (packetSize) {
+          // received a packet
+          Serial.println("done ");
+
+          Serial.print("  Received packet with id 0x");
+          Serial.print(CAN.packetId(), HEX);
+          Serial.print(" and length ");
+          Serial.print(packetSize);
+          Serial.print(" and data: ");
+          while (CAN.available()) {
+            Serial.print((char)CAN.read());
+          }
+        } else {
+          Serial.println("failed.");
+        }
+        
       } break;
   }
     delay(100);
