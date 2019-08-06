@@ -151,11 +151,6 @@ Wire Wire Line
 Connection ~ 7100 1750
 Wire Wire Line
 	7100 1750 6400 1750
-Wire Wire Line
-	6250 3200 7100 3200
-Wire Wire Line
-	7100 3200 7100 3000
-Connection ~ 7100 3000
 Text HLabel 6250 3300 2    50   BiDi ~ 0
 UART_TX
 Text HLabel 6250 3500 2    50   BiDi ~ 0
@@ -209,4 +204,8 @@ Wire Wire Line
 Connection ~ 8100 1750
 Wire Wire Line
 	8100 1750 7550 1750
+Wire Wire Line
+	6400 2900 6400 3200
+Wire Wire Line
+	6400 3200 6250 3200
 $EndSCHEMATC

@@ -1483,4 +1483,48 @@ Wire Wire Line
 	2800 4800 3400 4800
 Wire Wire Line
 	2800 4800 2800 5550
+$Comp
+L Virtual_own:Fiducial REF*4
+U 1 1 5D4DF8B0
+P 1600 7650
+F 0 "REF*4" H 1555 7700 50  0000 L CNN
+F 1 "Fiducial" H 1600 7700 50  0001 C CNN
+F 2 "Fiducial:Fiducial_1mm_Dia_2mm_Outer" H 1600 7650 50  0001 C CNN
+F 3 "" H 1600 7650 50  0001 C CNN
+	1    1600 7650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Virtual_own:Fiducial REF*3
+U 1 1 5D4DF928
+P 1600 7500
+F 0 "REF*3" H 1555 7550 50  0000 L CNN
+F 1 "Fiducial" H 1600 7550 50  0001 C CNN
+F 2 "Fiducial:Fiducial_1mm_Dia_2mm_Outer" H 1600 7500 50  0001 C CNN
+F 3 "" H 1600 7500 50  0001 C CNN
+	1    1600 7500
+	1    0    0    -1  
+$EndComp
+$Comp
+L Virtual_own:Fiducial REF*2
+U 1 1 5D4DF980
+P 1600 7350
+F 0 "REF*2" H 1555 7400 50  0000 L CNN
+F 1 "Fiducial" H 1600 7400 50  0001 C CNN
+F 2 "Fiducial:Fiducial_1mm_Dia_2mm_Outer" H 1600 7350 50  0001 C CNN
+F 3 "" H 1600 7350 50  0001 C CNN
+	1    1600 7350
+	1    0    0    -1  
+$EndComp
+$Comp
+L Virtual_own:Fiducial REF*1
+U 1 1 5D4DF9D6
+P 1600 7200
+F 0 "REF*1" H 1555 7250 50  0000 L CNN
+F 1 "Fiducial" H 1600 7250 50  0001 C CNN
+F 2 "Fiducial:Fiducial_1mm_Dia_2mm_Outer" H 1600 7200 50  0001 C CNN
+F 3 "" H 1600 7200 50  0001 C CNN
+	1    1600 7200
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
