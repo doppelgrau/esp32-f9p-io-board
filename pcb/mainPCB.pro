@@ -1,4 +1,4 @@
-update=Do 25 Apr 2019 17:49:28 CEST
+update=So 25 Aug 2019 16:41:57 CEST
 version=1
 last_client=kicad
 [general]
@@ -34,7 +34,7 @@ LibDir=
 [schematic_editor]
 version=1
 PageLayoutDescrFile=
-PlotDirectoryName=
+PlotDirectoryName=mainPCB.pdf
 SubpartIdSeparator=0
 SubpartFirstId=65
 NetFmtName=
