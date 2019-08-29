@@ -10,6 +10,7 @@ This PCB is a versatile IO plattform that provides computing power (ESP32) and I
     - Reduced inrush current (resistors R15/16 in serie with the starting diode D7 before the relay K1 closes and shortens the path).
     - V78E05-1000 (step down converter) PS1 generates 5V
     - AZ1117-3.3 LDO U2 generates 3V from the 5V supply.
+    - 12A (slow) fuse soldered on the board. Recommended to use a 10A external fuse.
 - ESP32-WROOM-32 U1 for computing-power, wifi, Bluetooth
 - Arduino headers for the simpleRTK2B-F9P (uart 1 of the F9P connected)
 - Serial interfaces
