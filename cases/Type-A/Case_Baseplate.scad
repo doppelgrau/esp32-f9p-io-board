@@ -4,14 +4,14 @@ error = 0.15; // how much increase for error during print
 $fn=100;
 
 // helper modules
-module pcbHolder(center=[0,0,0],height=10.8,baseDia=10,topDia=6, pinDia=4.1, screw=1.6) {
+module pcbHolder(center=[0,0,0],height=10.8,baseDia=16,topDia=8, pinDia=4.1, screw=1.6) {
     translate(center){
         difference() {
             union() {
-                rotate([0,0,45]) cylinder(height,baseDia,topDia,$fn=4);
-                translate([0,0,height]) cylinder(1, pinDia-error,pinDia-error);
+                rotate([0,0,45]) cylinder(height,baseDia/2,topDia/2,$fn=4);
+                translate([0,0,height]) cylinder(h=1, r=pinDia/2-error);
             };
-            translate([0,0,1]) cylinder(height+1, screw,screw);
+            translate([0,0,1]) cylinder(h=height+1, r=screw/2);
         };
     };
 };
@@ -20,8 +20,8 @@ module wireStrapHolder(center=[0,0,0], rotation=[0,90,0], inner=2.0, outer=5.5, 
     translate(center){
         rotate(rotation){
             difference(){
-                cylinder(width, outer, outer, center = true);
-                cylinder(width, inner, inner, center = true);
+                translate([0,0,-width/2]) cylinder(h=width, r=outer, center = true);
+                translate([0,0,-width/2]) cylinder(h=width, r=inner, center = true);
                 translate([0,0,outer]) cube(2*outer, center=true);
             };
         };
@@ -52,10 +52,11 @@ difference(){
     };
     // space for the switch
     translate([79,130,-11.8-error+1.5]) cube([27+2*error,40,12]);
+    translate([84,163,-10.8]) cube([17+2*error,7,1]);
     translate([75,170-30-1.2-1.2,-11.8-error+1.5]) cube([35,30,12]);
     translate([79,170-68.2-1.2-1.2,15.3]) rotate([-40,0,0]) cube([27+2*error,40,12]);
     // a bit lower for isolation foam (1mm)
-    translate([105 ,12, 0.5]) cube([9.5,102,3.01]);
+    translate([104.5 ,12, 0.5]) cube([9.5,102,3.01]);
     // holder for wire straps (cables)
     for (a =[25:15:110]) wireStrapHolder([103, a, 1.5]);
     for (a =[17.5:15:110]) wireStrapHolder([98, a, 1.5]);
@@ -76,15 +77,15 @@ difference(){
     for (a =[22.5:25:65]) edgeHolder([-5, a, -5.25],180);
     for (a =[122.5:25:155]) edgeHolder([-5, a, -5.25],180);
     // holes for the screws for the lid 
-    translate([120,170-2*1.2-7, -3]) cylinder(h=10,r1=1.6,r2=1.6,center=true);
-    translate([120,7, -3]) cylinder(h=10,r1=1.6,r2=1.6,center=true);    
+    translate([120,170-2*1.2-7, -3]) cylinder(h=10,r=1.6/2,center=true);
+    translate([120,7, -3]) cylinder(h=10,r=1.6/2,center=true);    
 };
 // pcbHolder, tanslate all on the bottom layer
 translate([0,0,-10.8]) {
-    pcbHolder(center=[5.6, 7.3,0], topDia=9);
-    pcbHolder(center=[65.7,7.5,0], topDia=9);
-    pcbHolder(center=[5.7,149,0]);
-    pcbHolder(center=[65.7,149,0]);
+    pcbHolder(center=[5.9, 7.5,0], topDia=9);
+    pcbHolder(center=[65.9,7.5,0], topDia=9);
+    pcbHolder(center=[5.9,149.2,0]);
+    pcbHolder(center=[65.9,149.2,0]);
 };
 
 // a small cylinder to help cabeling
