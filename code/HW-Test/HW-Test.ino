@@ -14,12 +14,12 @@
  *    J3-M2A <-> 10 Ohm <-> J1-I3 <-> 10 Ohm <-> J3-MB 
  *    + J3-M2A connected with 10 Ohm resistor
  *    + J3-M2B connected with 10 Ohm resistor
- *    + J4-M1B is connected with both resistors
+ *    + J1-I3 is connected with both resistors
  *  - Relay K2 / ADS1115
  *    + J5-A0 <-> J5-GND
- *    + J5-A1 <-> J3-NC
+ *    + J5-A1 (+ Pulldown) <-> J3-NC
  *    + J5-5V <-> J3-COM
- *    + J5-A2 <-> J3-NO
+ *    + J5-A2 (+ Pulldown) <-> J3-NO
  *  - Ethernet connected to a network with a DHCP server
  * 
  * 
@@ -63,9 +63,11 @@
 
 // global variables
 int check = 1;
-byte byteRead;
-byte sentByte = 'U';
+char byteRead;
+char sentByte = 'U';
 byte ethernetStatus = -1;
+int gyros[3];
+float magAbs[3];
 
 
 // instances
@@ -101,23 +103,21 @@ void setup() {
   gpio_set_direction(GPIO_NUM_16, GPIO_MODE_INPUT);
   
   gpio_pad_select_gpio(GPIO_NUM_2);
-  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
-
+  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_INPUT);
+  gpio_pad_select_gpio(GPIO_NUM_0);
+  gpio_set_direction(GPIO_NUM_0, GPIO_MODE_OUTPUT);
+  
   // PINs for CAN
   pinMode(CAN_RX, INPUT);
   gpio_pad_select_gpio(GPIO_NUM_35);
   gpio_set_direction(GPIO_NUM_35, GPIO_MODE_INPUT);
   pinMode(CAN_TX, OUTPUT);
 
-  Serial.println("Short J2 and pull up RS232");
-  Serial.println("Press to continue");
-  while (Serial.read() == -1 ) {
-    delay(1);
-  }
+  
 
 }
 
-void i2cTestAdress(byte address) {
+bool i2cTestAdress(byte address) {
   byte error;
 
     // The i2c_scanner uses the return value of
@@ -128,10 +128,13 @@ void i2cTestAdress(byte address) {
 
     if (error == 0) {
       Serial.println("Found");
+      return true;
     } else if (error == 4) {
       Serial.println("Unknown error");
-    } else {
+      return false;
+    } else{
       Serial.println("Not found");
+      return false;
     }
   }
 
@@ -154,127 +157,44 @@ uint8_t setByteI2C(int address, byte i2cregister, byte value) {
 
 void loop() {
   switch (check) {
-    case 1:
+    // Start with everything that can be done before all (external) connections are connected
+    case 1: {
       Serial.println("");
-      Serial.println("Uart0 - USB:        ok");
-      break;
+      Serial.println("configure CAN interface");
+      // "init"
+      // configure CAN-interface
+      CAN.setPins(CAN_RX, CAN_TX);
+
+      // start the CAN bus at 500 kbps
+      if (!CAN.begin(500E3)) {
+        Serial.println("Starting CAN failed!");
+        check = 99;
+        break;
+      }
+    } break;
     case 2:
-      Serial.print("Uart1 - F9P:        ");
-      Serial1.begin(38400, SERIAL_8N1, F9P_RX, F9P_TX);
-      // make sure queue is empty
-      while (Serial1.available()) {
-        byteRead = Serial1.read();
-      }
-      Serial1.write(sentByte);
-      delay(50);
-      byteRead = Serial1.read();
-      if (byteRead == sentByte) {
-        Serial.println("ok");
-      } else {
-        Serial.print("error. received: ");
-        Serial.println((char)byteRead);      }
-      break;
-    case 3:
-      Serial.print("Uart2 - RS232:      ");
-      Serial2.begin(9600, SERIAL_8N1, RS232_RX, RS232_TX);
-      // for waking up
-      delay(10);
-      Serial2.write('t');
-      delay(5);
-      // make sure queue is empty
-      while (Serial2.available()) {
-        byteRead = Serial2.read();
-      }
-      // wait a moment so uart <-> RS232 can wake up
-      delay(50);
-      Serial2.write(sentByte);
-      delay(20);
-      byteRead = Serial2.read();
-      if (byteRead == sentByte) {
-        Serial.println("ok");
-      } else {
-        Serial.print("error. received: ");
-        Serial.println((char)byteRead);
-      }
-      break;
-    case 4:
-      Serial.print("Uart2 - J2 / Light: ");
-      Serial2.begin(19200, SERIAL_8N1, UART_RX, UART_TX);
-      // make sure queue is empty
-      while (Serial2.available()) {
-        byteRead = Serial2.read();
-      }
-      Serial2.write(sentByte);
-      delay(50);
-      byteRead = Serial2.read();
-      if (byteRead == sentByte) {
-        Serial.println("ok");
-      } else {
-        Serial.print("error. received: ");
-        Serial.println((char)byteRead);      }
-      break;    
-    case 5:
       Serial.println("");
       // enable I2C interface
       Wire.begin(I2C_SDA, I2C_SCL, 400000);
       Serial.println("Checking I2C - Bus: ");
       Serial.print("  FXL6408 port extender (0x43): ");
-      i2cTestAdress(0x43);
+      if (! i2cTestAdress(0x43)) {
+        check = 99;
+      }
       Serial.print("  ADS1115               (0x1C): ");
-      i2cTestAdress(0x48);
+      if (! i2cTestAdress(0x48)) {
+        check = 99;
+      }
       Serial.print("  LSM9DS1 Magnetometer  (0x1C): ");
-      i2cTestAdress(0x1C);
+      if (! i2cTestAdress(0x1C)) {
+        check = 99;
+      }
       Serial.print("  LSM9DS1 Accelerometer (0x6A): ");
-      i2cTestAdress(0x6A);      
+      if (! i2cTestAdress(0x6A)) {
+        check = 99;
+      }     
       break;
-    case 8: {
-        Serial.println("");
-        Serial.print("Konfigure the LSM9DS1: ");
-        imu.settings.device.commInterface = IMU_MODE_I2C;
-        imu.settings.device.mAddress = 0x1C;
-        imu.settings.device.agAddress = 0x6A;
-        imu.settings.mag.scale = 4; // Set mag scale to +/-12 Gs
-        // [sampleRate] sets the output data rate (ODR) of the
-        // magnetometer.
-        // mag data rate can be 0-7:
-        // 0 = 0.625 Hz  4 = 10 Hz
-        // 1 = 1.25 Hz   5 = 20 Hz
-        // 2 = 2.5 Hz    6 = 40 Hz
-        // 3 = 5 Hz      7 = 80 Hz
-        imu.settings.mag.sampleRate = 5; // Set OD rate to 20Hz
-        // [tempCompensationEnable] enables or disables
-        // temperature compensation of the magnetometer.
-        imu.settings.mag.tempCompensationEnable = true;
-        // [XYPerformance] sets the x and y-axis performance of the
-        // magnetometer to either:
-        // 0 = Low power mode      2 = high performance
-        // 1 = medium performance  3 = ultra-high performance
-        imu.settings.mag.XYPerformance = 3; // Ultra-high perform.
-        // [ZPerformance] does the same thing, but only for the z
-        imu.settings.mag.ZPerformance = 3; // Ultra-high perform.
-        // [lowPowerEnable] enables or disables low power mode in
-        // the magnetometer.
-        imu.settings.mag.lowPowerEnable = false;
-        if (!imu.begin()) {
-          Serial.println("Failed");
-          check += 1;
-        } else {
-          Serial.println("Ok");
-        }
-      } break;
-    case 9: {
-        printGyro();  // Print "G: gx, gy, gz"
-        printAccel(); // Print "A: ax, ay, az"
-        printMag();   // Print "M: mx, my, mz"
-
-        // Print the heading and orientation for fun!
-        // Call print attitude. The LSM9DS1's magnetometer x and y
-        // axes are opposite to the accelerometer, so my and mx are
-        // substituted for each other.
-        printAttitude(imu.ax, imu.ay, imu.az, -imu.my, -imu.mx, imu.mz);
-        Serial.println();
-      } break;
-    case 10: {
+    case 3: {
         Serial.println("");
         Serial.println("Configure the FXL6408");
         // direction (Input/Output)
@@ -285,8 +205,42 @@ void loop() {
         setByteI2C(0x43, 0x0B, 0b00000001);
         // set direction of the pull
         setByteI2C(0x43, 0x0D, 0b00000001);
-        // enable gpio 2 (LED)
-        setByteI2C(0x43, 0x05, 0b00000100);
+      } break;
+    case 4: {
+        Serial.println("");
+        Serial.print("Konfigure the LSM9DS1: ");
+        imu.settings.device.commInterface = IMU_MODE_I2C;
+        imu.settings.device.mAddress = 0x1C;
+        imu.settings.device.agAddress = 0x6A;
+        imu.settings.mag.scale = 4; // Set mag scale to +/-12 Gs
+        imu.settings.mag.XYPerformance = 3; // Ultra-high perform.
+        imu.settings.mag.ZPerformance = 3; // Ultra-high perform.
+        imu.settings.mag.lowPowerEnable = false;
+        if (!imu.begin()) {
+          Serial.println("Failed");
+          check = 99;
+        } else {
+          Serial.println("Ok");
+        }
+      } break;
+    case 5: {
+        Serial.println("");
+        Serial.println("Configure Ethernet (LAN8720)");
+
+        // "init"
+        // enable the LAN8720
+        setByteI2C(0x43, 0x05, 0b00000010);
+
+        // Start Network
+        WiFi.onEvent(EtherEvent);
+        ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
+        ETH.config(IPAddress(10, 0, 1, 200),IPAddress(0, 0, 0, 0),IPAddress(255, 255, 255, 0),IPAddress(0, 0, 0, 0),IPAddress(0, 0, 0, 0));          
+      } break;
+    case 6: {
+        Serial.println("");
+        Serial.println("Wait for the test engineer to connect all external cables");
+        // enable gpio 2 (LED) in addition to the ethernet
+        setByteI2C(0x43, 0x05, 0b00000110);
         Serial.println("LED on, press SW1 to disable LED and continue");
         
         // input state
@@ -300,9 +254,9 @@ void loop() {
           value = value & 0b00000001;
         }
         // LED off
-        setByteI2C(0x43, 0x05, 0b00000000);
+        setByteI2C(0x43, 0x05, 0b00000010);
       } break;
-   case 11: {
+   case 7: {
         Serial.println("");
         Serial.println("Test M1 (2xVNH7070AS) and inputs I1, I2");
         // Set PWM-Signal
@@ -311,7 +265,7 @@ void loop() {
         
         // PWM 100%, both off => GND
         ledcWrite(0, 255);
-        setByteI2C(0x43, 0x05, 0b00000000);
+        setByteI2C(0x43, 0x05, 0b00000010);
         delay(200);
         Serial.print("  A off, B off, PWM 255, I1 < 10,   I2 < 10:   ");
         if (analogRead(ANALOG_INPUT1) > 10 || analogRead(ANALOG_INPUT2) > 10) {
@@ -319,60 +273,64 @@ void loop() {
           Serial.print(analogRead(ANALOG_INPUT1));
           Serial.print("  I2: ");
           Serial.println(analogRead(ANALOG_INPUT2));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // PWM 50%, both active => 12V
         ledcWrite(0, 128);
-        setByteI2C(0x43, 0x05, 0b11000000);
+        setByteI2C(0x43, 0x05, 0b11000010);
         delay(200);
-        Serial.print("  A on,  B on,  PWM 128, I1 > 750,  I2 > 750:  ");
-        if (analogRead(ANALOG_INPUT1) < 750 || analogRead(ANALOG_INPUT2) < 750) {
+        Serial.print("  A on,  B on,  PWM 128, I1 > 650,  I2 > 650:  ");
+        if (analogRead(ANALOG_INPUT1) < 650 || analogRead(ANALOG_INPUT2) < 650) {
           Serial.print("Error - I1: ");
           Serial.print(analogRead(ANALOG_INPUT1));
           Serial.print("  I2: ");
           Serial.println(analogRead(ANALOG_INPUT2));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // PWM 100%, A active
         ledcWrite(0, 255);
-        setByteI2C(0x43, 0x05, 0b01000000);
+        setByteI2C(0x43, 0x05, 0b01000010);
         delay(200);
-        Serial.print("  A on,  B off, PWM 255, I1 > 750,  I2 < 10:   ");
-        if (analogRead(ANALOG_INPUT1) < 750 || analogRead(ANALOG_INPUT2) > 10) {
+        Serial.print("  A on,  B off, PWM 255, I1 > 650,  I2 < 10:   ");
+        if (analogRead(ANALOG_INPUT1) < 650 || analogRead(ANALOG_INPUT2) > 10) {
           Serial.print("Error - I1: ");
           Serial.print(analogRead(ANALOG_INPUT1));
           Serial.print("  I2: ");
           Serial.println(analogRead(ANALOG_INPUT2));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // PWM 100%, B active
         ledcWrite(0, 255);
-        setByteI2C(0x43, 0x05, 0b10000000);
+        setByteI2C(0x43, 0x05, 0b10000010);
         delay(200);
-        Serial.print("  A off, B on,  PWM 255, I1 < 10,   I2 > 750:  ");
-        if (analogRead(ANALOG_INPUT1) > 10 || analogRead(ANALOG_INPUT2) < 750) {
+        Serial.print("  A off, B on,  PWM 255, I1 < 10,   I2 > 650:  ");
+        if (analogRead(ANALOG_INPUT1) > 10 || analogRead(ANALOG_INPUT2) < 650) {
           Serial.print("Error - I1: ");
           Serial.print(analogRead(ANALOG_INPUT1));
           Serial.print("  I2: ");
           Serial.println(analogRead(ANALOG_INPUT2));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
        // PWM 0%, both disabled
-       setByteI2C(0x43, 0x05, 0b00000000);
+       setByteI2C(0x43, 0x05, 0b00000010);
        delay(10);
        ledcWrite(0, 0);
 
       } break;
 
-   case 12: {
+   case 8: {
         Serial.println("");
         Serial.println("Test M2 (VNH7070AS) and input I3");
         // Set PWM-Signal
@@ -381,60 +339,64 @@ void loop() {
         
         // PWM 100%, both off => GND
         ledcWrite(1, 255);
-        setByteI2C(0x43, 0x05, 0b00000000);
+        setByteI2C(0x43, 0x05, 0b00000010);
         delay(200);
         Serial.print("  A off, B off, PWM 255, I3  < 10:  ");
         if (analogRead(ANALOG_INPUT3) > 10) {
           Serial.print("Error - I3: ");
           Serial.println(analogRead(ANALOG_INPUT3));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // PWM 50%, both active => 12V
         ledcWrite(1, 128);
-        setByteI2C(0x43, 0x05, 0b00110000);
+        setByteI2C(0x43, 0x05, 0b00110010);
         delay(200);
-        Serial.print("  A on,  B on,  PWM 128, I3  > 750: ");
-        if (analogRead(ANALOG_INPUT3) < 750) {
+        Serial.print("  A on,  B on,  PWM 128, I3  > 650: ");
+        if (analogRead(ANALOG_INPUT3) < 650) {
           Serial.print("Error - I3: ");
           Serial.println(analogRead(ANALOG_INPUT3));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // PWM 100%, A active
         ledcWrite(1, 255);
-        setByteI2C(0x43, 0x05, 0b00100000);
+        setByteI2C(0x43, 0x05, 0b00100010);
         delay(200);
-        Serial.print("  A on,  B off, PWM 255, I3 ca 400: ");
-        if (analogRead(ANALOG_INPUT3)  < 350 || analogRead(ANALOG_INPUT3)  > 450) {
+        Serial.print("  A on,  B off, PWM 255, I3 ca 350: ");
+        if (analogRead(ANALOG_INPUT3)  < 300 || analogRead(ANALOG_INPUT3)  > 400) {
           Serial.print("Error - I3: ");
           Serial.println(analogRead(ANALOG_INPUT3));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // PWM 100%, B active
         ledcWrite(1, 255);
-        setByteI2C(0x43, 0x05, 0b00010000);
+        setByteI2C(0x43, 0x05, 0b00010010);
         delay(200);
-        Serial.print("  A off, B on,  PWM 255, I3 ca 400: ");
-        if (analogRead(ANALOG_INPUT3)  < 350 || analogRead(ANALOG_INPUT3)  > 450) {
+        Serial.print("  A off, B on,  PWM 255, I3 ca 350: ");
+        if (analogRead(ANALOG_INPUT3)  < 300 || analogRead(ANALOG_INPUT3)  > 400) {
           Serial.print("Error - I3: ");
           Serial.println(analogRead(ANALOG_INPUT3));
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
        // PWM 0%, both disabled
-       setByteI2C(0x43, 0x05, 0b00000000);
+       setByteI2C(0x43, 0x05, 0b00000010);
        delay(10);
        ledcWrite(1, 0);
 
       } break;
 
-   case 13: {
+   case 9: {
         Serial.println("");
         Serial.println("Test Relay K2 and ADS1115");
 
@@ -443,15 +405,15 @@ void loop() {
         int a0,a1,a2,a3;
 
         // relay off
-        setByteI2C(0x43, 0x05, 0b00000000);
-        Serial.print("  Relay off, A0:   < 50,   A1  =  A3,      100 < A2 < 20000, A3 > 26000 ");
+        setByteI2C(0x43, 0x05, 0b00000010);
+        Serial.print("  Relay off, A0:   < 50,   A1  =  A3,      A2 < 50, A3 > 26000 ");
         delay(200);
         // read data
         a0 = ads.readADC_SingleEnded(0);
         a1 = ads.readADC_SingleEnded(1);
         a2 = ads.readADC_SingleEnded(2);
         a3 = ads.readADC_SingleEnded(3); 
-        if (a0 > 50 || abs(a1 - a3) > 150 || a2 < 100 || a2 > 20000 || a3 < 26000 ) {
+        if (a0 > 50 || abs(a1 - a3) > 200 || a2 > 50 || a3 < 26000 ) {
           Serial.print("Error - a0: ");
           Serial.print(a0);
           Serial.print(" - a1: ");
@@ -460,20 +422,21 @@ void loop() {
           Serial.print(a2);
           Serial.print(" - a3: ");
           Serial.println(a3);
+          check = 99;
         } else {
           Serial.println("Ok");
         }
 
         // relay on
         setByteI2C(0x43, 0x05, 0b00001000);
-        Serial.print("  Relay on,  A0:   < 50, 100 < A1 < 20000,    A2 = A3,       A3 > 26000 ");
+        Serial.print("  Relay on,  A0:   < 50, A1 < 50,    A2 = A3,       A3 > 26000 ");
         delay(200);
         // read data
         a0 = ads.readADC_SingleEnded(0);
         a1 = ads.readADC_SingleEnded(1);
         a2 = ads.readADC_SingleEnded(2);
         a3 = ads.readADC_SingleEnded(3); 
-        if (a0 > 50 || abs(a2 - a3) > 150 || a1 < 100 || a1 > 20000 || a3 < 26000 ) {
+        if (a0 > 50 || abs(a2 - a3) > 200 ||  a1 > 50 || a3 < 26000 ) {
           Serial.print("Error - a0: ");
           Serial.print(a0);
           Serial.print(" - a1: ");
@@ -482,6 +445,7 @@ void loop() {
           Serial.print(a2);
           Serial.print(" - a3: ");
           Serial.println(a3);
+          check = 99;
         } else {
           Serial.println("Ok");
         }
@@ -489,52 +453,9 @@ void loop() {
         setByteI2C(0x43, 0x05, 0b00000000);
 
       } break;
-   case 14: {
-        Serial.println("");
-        Serial.println("Test Ethernet connection (cable)");
-
-        // "init"
-        // enable the LAN8720
-        setByteI2C(0x43, 0x05, 0b00000010);
-
-        // Start Network
-        WiFi.onEvent(EtherEvent);
-        ETH.begin(ETH_ADDR, ETH_POWER_PIN, ETH_MDC_PIN, ETH_MDIO_PIN, ETH_TYPE, ETH_CLK_MODE);
-
-        int counter = 0;
-        byte lastState = -1;
-        // wait until started
-        while (counter < 1000) {
-          delay(10);
-          if (ethernetStatus == 0 && lastState != 0) {
-            lastState = 0;
-            Serial.print("  started - ");
-          }
-          if (ethernetStatus == 1 && lastState != 1) {
-            lastState = 1;
-            Serial.print("connected - ");
-          }
-          if (ethernetStatus == 2 && lastState != 2) {
-            lastState = 2;
-            Serial.println("IP adress: passed");
-            counter += 10000;
-          }        
-          
-        }
-      } break;
-   case 15: {
+   case 10: {
         Serial.println("");
         Serial.println("Test CAN interface");
-
-        // "init"
-        // configure CAN-interface
-        CAN.setPins(CAN_RX, CAN_TX);
-
-        // start the CAN bus at 500 kbps
-        if (!CAN.begin(500E3)) {
-          Serial.println("Starting CAN failed!");
-          break;
-        }
 
         // send a message
         Serial.print("  Sending ... ");
@@ -565,9 +486,358 @@ void loop() {
           }
         } else {
           Serial.println("failed.");
+          check = 99;
+        }
+        Serial.println("");
+      } break;
+    case 11:
+      Serial.println("");
+      Serial.println("Testing the Uarts");
+      Serial.print("Uart1 - F9P:        ");
+      Serial1.begin(38400, SERIAL_8N1, F9P_RX, F9P_TX);
+      // make sure queue is empty
+      while (Serial1.available()) {
+        byteRead = Serial1.read();
+      }
+      Serial1.write(sentByte);
+      delay(50);
+      byteRead = Serial1.read();
+      if (byteRead == sentByte) {
+        Serial.println("ok");
+      } else {
+        Serial.print("error. received: ");
+        Serial.println((char)byteRead);      
+        check = 99;
+      }
+      break;
+    case 12:
+      Serial.print("Uart2 - RS232:      ");
+      Serial2.begin(9600, SERIAL_8N1, RS232_RX, RS232_TX);
+      // for waking up
+      delay(10);
+      Serial2.write('t');
+      delay(5);
+      // make sure queue is empty
+      while (Serial2.available()) {
+        byteRead = Serial2.read();
+      }
+      // wait a moment so uart <-> RS232 can wake up
+      delay(50);
+      Serial2.write(sentByte);
+      delay(20);
+      byteRead = Serial2.read();
+      if (byteRead == sentByte) {
+        Serial.println("ok");
+      } else {
+        Serial.print("error. received: ");
+        Serial.println((char)byteRead);
+        check = 99;
+      }
+      break;
+    case 13:
+      Serial.print("Uart2 - J2 / Light: ");
+      Serial1.end();
+      delay(5);
+      Serial1.begin(19200, SERIAL_8N1, UART_TX, UART_RX);
+      // for waking up
+      delay(10);
+      Serial2.write('t');
+      delay(5);
+      // make sure queue is empty
+      while (Serial1.available()) {
+        byteRead = Serial1.read();
+      }
+      Serial1.write(sentByte);
+      delay(10);
+      byteRead = Serial1.read();
+      if (byteRead == sentByte) {
+        Serial.println("ok");
+      } else {
+        Serial.print("error. received: ");
+        Serial.println(byteRead); 
+        while (Serial1.available()) {
+          Serial.println(Serial1.read());
+        }
+        check = 99;
+      }
+      break;  
+   case 14: {
+        Serial.println("");
+        Serial.println("Test Ethernet connection (cable)");
+
+       
+        int counter = 0;
+        byte lastState = -1;
+        // wait until started
+        while (counter < 1000) {
+          delay(10);
+          if (ethernetStatus == 0 && lastState != 0) {
+            lastState = 0;
+            Serial.print("  started - ");
+          }
+          if (ethernetStatus == 1 && lastState != 1) {
+            lastState = 1;
+            Serial.print("connected - ");
+          }
+          if (ethernetStatus == 2 && lastState != 2) {
+            lastState = 2;
+            Serial.println("IP adress: passed");
+            counter += 10000;
+          }        
+        }
+        // if connection test http/data, if not => error
+        if (ethernetStatus < 2 ) {
+          Serial.println("Failed network connection");
+          check = 99;
         }
         
       } break;
+   case 15: {
+        Serial.println("");
+        Serial.println("Rough calibration of the gyros");
+
+       
+        for (int i = 0; i < 32; i++) {
+          imu.readGyro();
+          gyros[0] += imu.gx;
+          gyros[1] += imu.gy;
+          gyros[2] += imu.gz;
+          delay(40);
+        }  
+        gyros[0] = gyros[0] >> 5;
+        gyros[1] = gyros[1] >> 5;
+        gyros[2] = gyros[2] >> 5;
+        Serial.println("Some basic plausibility checks of the IMU");
+        // Acceleration, should lay flat on the ground => az about 1g
+        imu.readAccel();
+        if (imu.calcAccel(imu.ax) > 0.1 || imu.calcAccel(imu.ay) > 0.1 || imu.calcAccel(imu.az) < 0.9) {
+          Serial.println("  Acceleration is wrong, not in starting position?");
+          check = 99;
+        } else {
+          Serial.println("  Acceleration is ok");
+        }
+        // gyros, after calibrations should be below 1 dregree/s
+        imu.readGyro();
+        if (imu.calcGyro(imu.gx - gyros[0]) > 1 || imu.calcGyro(imu.gy - gyros[1]) > 1 || imu.calcGyro(imu.gz - gyros[2]) >1) {
+          Serial.println("  Gyros wrong, moved during calibration?");
+          check = 99;
+        } else {
+          Serial.println("  Gyros is ok");
+        }
+        // magnetometer
+        imu.readMag();
+        Serial.println(imu.calcMag(imu.mx));
+        Serial.println(abs(imu.calcMag(imu.mx)));
+        magAbs[0] = imu.calcMag(imu.mx);
+        magAbs[1] = imu.calcMag(imu.my);
+        magAbs[2] = imu.calcMag(imu.mz);
+
+        if ( (magAbs[0] + magAbs[1] + magAbs[2]) > -0.1 && (magAbs[0] + magAbs[1] + magAbs[2]) < 0.1  ) { // sum near zero is suspicious
+          Serial.println("  Magnetometer delivers strange results, defect or large interference");
+          Serial.print(magAbs[0], 2);
+          Serial.print(", ");
+          Serial.print(magAbs[1], 2);
+          Serial.print(", ");
+          Serial.print(magAbs[2], 2);
+          check = 99;
+        } else {
+          Serial.println("  Magnetometer is ok");
+        }
+      } break;
+   case 16: {
+        Serial.println("");
+        Serial.println("Test IMU: Turn to the right");
+
+        // signal start with a beep
+        CAN.beginPacket(0x05);
+        CAN.write('y');
+        CAN.endPacket();
+
+        // record data
+        float angle = 0;
+        int timeout = 20 * 50; // 20s,timeout, 50 samples/second
+        
+        imu.readAccel();
+        while (timeout > 0 && imu.calcAccel(imu.ax) < 0.93) {
+          delay(20);
+          imu.readAccel();
+          imu.readGyro();
+          angle += imu.calcGyro(imu.gy - gyros[1]) / 50;
+          timeout--;
+        }
+        if (timeout > 0) {
+          if (angle < 50 || angle > 100) {
+            Serial.println("  Gyros didn't report a good angle");
+            check = 99;
+          } else {
+            Serial.print("  angle ok: ");
+          }
+          // magnetometer some changes
+          imu.readMag();
+          float change = 0;
+          if ( (magAbs[0] - imu.calcMag(imu.mx)) < 0 ) {
+            change += -(magAbs[0] - imu.calcMag(imu.mx));
+          } else {
+            change += magAbs[0] - imu.calcMag(imu.mx);
+          }
+          if ( (magAbs[1] - imu.calcMag(imu.my)) < 0 ) {
+            change += -(magAbs[1] - imu.calcMag(imu.my));
+          } else {
+            change += magAbs[1] - imu.calcMag(imu.my);
+          }
+          if ( (magAbs[2] - imu.calcMag(imu.mz)) < 0 ) {
+            change += -(magAbs[2] - imu.calcMag(imu.mz));
+          } else {
+            change += magAbs[2] - imu.calcMag(imu.mz);
+          }
+          if (change < 0.3) {
+            Serial.println("  Magnetometer did not change enough, errors possible");
+            check = 99;
+          }
+        } else {
+          Serial.println("  Accelerometer didnt report turning withing 20s");
+          check = 99;
+        }
+      } break;
+   case 17: {
+        Serial.println("");
+        Serial.println("Test IMU: Turn to the back");
+
+        // signal start with a beep
+        CAN.beginPacket(0x05);
+        CAN.write('y');
+        CAN.endPacket();
+
+        // record data
+        float angle = 0;
+        int timeout = 20 * 50; // 20s,timeout, 50 samples/second
+        
+        imu.readAccel();
+        while (timeout > 0 && imu.calcAccel(imu.ay) > -0.93) {
+          delay(20);
+          imu.readAccel();
+          imu.readGyro();
+          angle += imu.calcGyro(imu.gz - gyros[2]) / 50;
+          timeout--;
+        }
+        if (timeout > 0) {
+          if (angle > -50 || angle < -100) {
+            Serial.println("  Gyros didn't report a good angle");
+            Serial.println(angle);
+            check = 99;
+          } else {
+            Serial.print("  angle ok: ");
+          }
+          // magnetometer some changes
+          imu.readMag();
+          float change = 0;
+         if ( (magAbs[0] - imu.calcMag(imu.mx)) < 0 ) {
+            change += -(magAbs[0] - imu.calcMag(imu.mx));
+          } else {
+            change += magAbs[0] - imu.calcMag(imu.mx);
+          }
+          if ( (magAbs[1] - imu.calcMag(imu.my)) < 0 ) {
+            change += -(magAbs[1] - imu.calcMag(imu.my));
+          } else {
+            change += magAbs[1] - imu.calcMag(imu.my);
+          }
+          if ( (magAbs[2] - imu.calcMag(imu.mz)) < 0 ) {
+            change += -(magAbs[2] - imu.calcMag(imu.mz));
+          } else {
+            change += magAbs[2] - imu.calcMag(imu.mz);
+          }
+          if (change < 0.3) {
+            Serial.println("  Magnetometer did not change enough, errors possible");
+            check = 99;
+          }
+        } else {
+          Serial.println("  Accelerometer didnt report turning withing 20s");
+          check = 99;
+        }
+      } break;
+    case 18: {
+        Serial.println("");
+        Serial.println("Test IMU: Turn left, after that back to the front");
+
+        // signal start with a beep
+        CAN.beginPacket(0x05);
+        CAN.write('y');
+        CAN.endPacket();
+
+        // record data
+        float angleY = 0;
+        float angleX = 0;
+        int timeout = 20 * 50; // 20s,timeout, 50 samples/second
+        
+        imu.readAccel();
+        while (timeout > 0 && imu.calcAccel(imu.az) < 0.93) {
+          delay(20);
+          imu.readAccel();
+          imu.readGyro();
+          angleX += imu.calcGyro(imu.gx - gyros[0]) / 50;
+          angleY += imu.calcGyro(imu.gy - gyros[1]) / 50;          
+          timeout--;
+        }
+        if (timeout > 0) {
+          if (angleX > -50 || angleX < -100 || angleY > -60 || angleY < -100) {
+            Serial.println("  Gyros didn't report a good angle");
+            Serial.println(angleX);
+            Serial.println(angleY);
+            check = 99;
+          } else {
+            Serial.print("  angle ok: ");
+          }
+        } else {
+          Serial.println("  Accelerometer didnt report turning withing 20s");
+          check = 99;
+        }
+      } break;
+    case 19: {
+        Serial.println("");
+        Serial.println("Test IMU: finished");
+
+        // signal start with a beep
+        CAN.beginPacket(0x05);
+        CAN.write('y');
+        CAN.endPacket();
+        
+        check = 48;
+      } break;
+    case 50: {
+      Serial.println("");
+      Serial.println("Erfolgreich / Success");
+
+       int counter = 1;
+       while (true) {
+          // status LED
+          if ((counter++ % 512) < 256) {
+            setByteI2C(0x43, 0x05, 0b00000110);
+          } else {
+            setByteI2C(0x43, 0x05, 0b00000010);
+          }
+          delay(5);
+       }
+    }break;      
+    case 100: {
+        Serial.println("");
+        Serial.println("F E H L E R  /  E R R O R");
+
+        // light and sound show
+        int counter;
+        while (true) {
+          if ((counter++ % 64) < 32) {
+            setByteI2C(0x43, 0x05, 0b00000110);
+          } else {
+            setByteI2C(0x43, 0x05, 0b00000010);
+          }
+          if (counter % 64 == 48) {
+            CAN.beginPacket(0x05);
+            CAN.write('y');
+            CAN.endPacket();
+          }
+          delay(5);
+      } 
+    }break;
   }
     delay(100);
     check += 1;
@@ -588,11 +858,11 @@ void printGyro()
   // If you want to print calculated values, you can use the
   // calcGyro helper function to convert a raw ADC value to
   // DPS. Give the function the value that you want to convert.
-  Serial.print(imu.calcGyro(imu.gx), 2);
+  Serial.print(imu.calcGyro(imu.gx - gyros[0]), 2);
   Serial.print(", ");
-  Serial.print(imu.calcGyro(imu.gy), 2);
+  Serial.print(imu.calcGyro(imu.gy - gyros[1]), 2);
   Serial.print(", ");
-  Serial.print(imu.calcGyro(imu.gz), 2);
+  Serial.print(imu.calcGyro(imu.gz - gyros[2]), 2);
   Serial.println(" deg/s");
 }
 
@@ -699,7 +969,7 @@ void setupGyro()
   // 1 = 14.9    4 = 238
   // 2 = 59.5    5 = 476
   // 3 = 119     6 = 952
-  imu.settings.gyro.sampleRate = 2; // 59.5Hz ODR
+  imu.settings.gyro.sampleRate = 3; // 59.5Hz ODR
   // [bandwidth] can set the cutoff frequency of the gyro.
   // Allowed values: 0-3. Actual value of cutoff frequency
   // depends on the sample rate. (Datasheet section 7.12)
@@ -739,7 +1009,7 @@ void setupAccel()
   // 1 = 10 Hz    4 = 238 Hz
   // 2 = 50 Hz    5 = 476 Hz
   // 3 = 119 Hz   6 = 952 Hz
-  imu.settings.accel.sampleRate = 1; // Set accel to 10Hz.
+  imu.settings.accel.sampleRate = 3; // Set accel to 10Hz.
   // [bandwidth] sets the anti-aliasing filter bandwidth.
   // Accel cutoff freqeuncy can be any value between -1 - 3.
   // -1 = bandwidth determined by sample rate
@@ -772,7 +1042,7 @@ void setupMag()
   // 1 = 1.25 Hz   5 = 20 Hz
   // 2 = 2.5 Hz    6 = 40 Hz
   // 3 = 5 Hz      7 = 80 Hz
-  imu.settings.mag.sampleRate = 5; // Set OD rate to 20Hz
+  imu.settings.mag.sampleRate = 7; // Set OD rate to 20Hz
   // [tempCompensationEnable] enables or disables
   // temperature compensation of the magnetometer.
   imu.settings.mag.tempCompensationEnable = true;
