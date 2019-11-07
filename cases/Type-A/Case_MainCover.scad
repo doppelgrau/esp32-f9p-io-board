@@ -46,10 +46,10 @@ difference(){
     translate([5.9,149,0]) cylinder(h=100, r=3, center = true);
     translate([65.9,149,0]) cylinder(h=100, r=3, center = true);
     // openning rs232
-    translate([14.9-error,-1.25,0]) cube([31.2+2*error,4,12.5+0.1+error]);
+    translate([14.8-error,-1.25,0]) cube([31.2+2*error,4,12.5+0.1+error]);
     //openning usb (front a bit wider than the rest
-    translate([52.9-error,-1.25,0]) cube([7.6+2*error,4,2.6+0.1+error]); // main
-    translate([52.7-error,-1.25,0]) cube([8+2*error,1.6,2.85+0.1+error]); // main
+    translate([52.8-error,-1.25,0]) cube([7.6+2*error,4,2.6+0.1+error]); // main
+    translate([52.6-error,-1.25,0]) cube([8+2*error,1.6,2.85+0.1+error]); // main
 
     // space for the switch
     translate([84,163,-0.4]) cube([17+2*error,7,1]);
