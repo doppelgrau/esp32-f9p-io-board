@@ -2,10 +2,10 @@
 // 0.1mm of pcb not in the lower part
 // printed turned by 180° (but so the coordinated match with the lower part)
 error = 0.15; // how much increase for error during print
-$fn=200;
+$fn=100;
 
 // helper modules
-module screwHole(center=[0,0,0],height=24.95,inner=4.8,wall=1.6, hole=2.2, slope=1.8) {
+module screwHole(center=[0,0,0],height=24.95,inner=5.7,wall=1.6, hole=3.0, slope=1.8) {
     translate(center) {
         difference() {
             translate([0,0,height/2]) cylinder(h=height, r=inner/2+2*wall/2+0.01, center = true);

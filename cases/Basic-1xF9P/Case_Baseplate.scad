@@ -4,13 +4,10 @@ error = 0.15; // how much increase for error during print
 $fn=100;
 
 // helper modules
-module pcbHolder(center=[0,0,0],height=10.8,baseDia=16,topDia=8, pinDia=4.1, screw=1.6) {
+module pcbHolder(center=[0,0,0],height=10.8,baseDia=16,topDia=8, screw=2) {
     translate(center){
         difference() {
-            union() {
-                rotate([0,0,45]) cylinder(height,baseDia/2,topDia/2,$fn=4);
-                translate([0,0,height]) cylinder(h=1, r=pinDia/2-error);
-            };
+            rotate([0,0,45]) cylinder(height,baseDia/2,topDia/2,$fn=4);
             translate([0,0,1]) cylinder(h=height+1, r=screw/2);
         };
     };
@@ -77,8 +74,8 @@ difference(){
     for (a =[22.5:25:65]) edgeHolder([-5, a, -5.25],180);
     for (a =[122.5:25:155]) edgeHolder([-5, a, -5.25],180);
     // holes for the screws for the lid 
-    translate([120,170-2*1.2-7, -3]) cylinder(h=10,r=1.6/2,center=true);
-    translate([120,7, -3]) cylinder(h=10,r=1.6/2,center=true);    
+    translate([120,170-2*1.2-7, -3]) cylinder(h=10,r=2/2,center=true);
+    translate([120,7, -3]) cylinder(h=10,r=2/2,center=true);    
 };
 // pcbHolder, tanslate all on the bottom layer
 translate([0,0,-10.8]) {
