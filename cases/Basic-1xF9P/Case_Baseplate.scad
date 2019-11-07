@@ -20,6 +20,7 @@ module wireStrapHolder(center=[0,0,0], rotation=[0,90,0], inner=2.0, outer=5.5, 
                 translate([0,0,-width/2]) cylinder(h=width, r=outer, center = true);
                 translate([0,0,-width/2]) cylinder(h=width, r=inner, center = true);
                 translate([0,0,outer]) cube(2*outer, center=true);
+
             };
         };
     };
@@ -32,6 +33,26 @@ module edgeHolder(center=[0,0,0],angle=0) {
         translate([0,2,-1.5]) cube([30,3,2.5]);
         translate([0,-5,-1.5]) cube([30,3,2.5]);
        };
+    };
+};
+
+module switchSpace() {
+    translate([0,-45,0]) cube([27+2*error,45,12]); // long inner part
+    translate([5,-7,-0.3]) cube([17+2*error,7,1]); // dent for the small triangles at the side
+    translate([-4,-32.4,0]) cube([35,30,12]); // wider space inside
+    translate([0,-65,35]) rotate([-60,0,0]) cube([27+2*error,40,20]); // angle at the end
+    translate([-2,-90,5.5]) cube([15,60,12]); // a bit space for cable management (under J3
+}
+
+module pcbClamp(center=[0,0,0], rotation=[0,0,0], l=10) {
+    translate(center){
+        rotate(rotation){
+            difference(){
+                cube([l,5,4], center = true);
+                translate([0,1.5,-1.8]) cube([l,2,0.6], center = true); // pcb
+                translate([0,2.67,-1]) rotate([40,0,0]) cube([l,4,2], center=true);
+            };
+        };
     };
 };
 
@@ -48,10 +69,8 @@ difference(){
       cube([71,156,11]);
     };
     // space for the switch
-    translate([79,130,-11.8-error+1.5]) cube([27+2*error,40,12]);
-    translate([84,163,-10.8]) cube([17+2*error,7,1]);
-    translate([75,170-30-1.2-1.2,-11.8-error+1.5]) cube([35,30,12]);
-    translate([79,170-68.2-1.2-1.2,15.3]) rotate([-40,0,0]) cube([27+2*error,40,12]);
+    translate([79,170,-10.5]) switchSpace();
+
     // a bit lower for isolation foam (1mm)
     translate([104.5 ,12, 0.5]) cube([9.5,102,3.01]);
     // holder for wire straps (cables)
@@ -85,4 +104,6 @@ translate([0,0,-10.8]) {
     pcbHolder(center=[65.9,149.2,0]);
 };
 
-// a small cylinder to help cabeling
+// help during mount
+pcbClamp(center=[73.8,29.5,3.5], rotation=[0,0,90], l=3);
+pcbClamp(center=[73.8,112,3.5], rotation=[0,0,90], l=4);
