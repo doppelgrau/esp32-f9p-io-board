@@ -85,3 +85,5 @@ translate([4.9, 1,0.3]) cube([2,3,24]);
 translate([64.9, 1,0.3]) cube([2,3,24]);
 translate([0, 148.2,0.3]) cube([3,2,24]);
 translate([69.9, 148.2,0.3]) cube([4,2,24]);
+// small support for the thin top
+translate([-9, 80, 20]) cube([120,2.4,5]);
