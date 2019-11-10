@@ -5,7 +5,7 @@ error = 0.15; // how much increase for error during print
 $fn=100;
 
 // helper modules
-module screwHole(center=[0,0,0],height=24.95,inner=5.7,wall=1.6, hole=3.0, slope=1.8) {
+module screwHole(center=[0,0,0],height=24.85,inner=5.7,wall=1.6, hole=3.0, slope=1.8) {
     translate(center) {
         difference() {
             translate([0,0,height/2]) cylinder(h=height, r=inner/2+2*wall/2+0.01, center = true);
@@ -20,8 +20,8 @@ module screwHole(center=[0,0,0],height=24.95,inner=5.7,wall=1.6, hole=3.0, slope
 difference(){
     // base form
     translate([-9.2,-1.2,0]) cube([140,170,25.25]);
-    // 0.15mm for the pcb
-    translate([0,0,-0.1]) cube([73+2*error,160.1+2*error,0.25]);
+    // 0.2mm for the pcb
+    translate([0,0,-0.1]) cube([73+4*error,160.1+2*error,0.3]);
     // space above pcb (1mm/1.5 of the small sides solid)
     translate([0,1.5,-0.1]) cube([73+2*error,157.6+2*error,24.1]);
     // space for esp32 antenna
@@ -46,13 +46,31 @@ difference(){
     translate([5.9,149,0]) cylinder(h=100, r=3, center = true);
     translate([65.9,149,0]) cylinder(h=100, r=3, center = true);
     // openning rs232
-    translate([14.8-error,-1.25,0]) cube([31.2+2*error,4,12.5+0.1+error]);
+    translate([15.2-error,-1.25,0]) cube([31.2+2*error,4,12.5+0.1+error]);
     //openning usb (front a bit wider than the rest
-    translate([52.8-error,-1.25,0]) cube([7.6+2*error,4,2.6+0.1+error]); // main
-    translate([52.6-error,-1.25,0]) cube([8+2*error,1.6,2.85+0.1+error]); // main
+    translate([53.2-error,-1.25,0]) cube([7.6+2*error,4,2.6+0.1+error]); // main
+    translate([53.0-error,-1.25,0]) cube([8+2*error,1.6,2.85+0.1+error]); // main
 
     // space for the switch
     translate([84,163,-0.4]) cube([17+2*error,7,1]);
+    
+    // small cutout for the plug and it's holder
+    translate([72, 8.5,-0.01]) cube([8.5,4,8]);
+    
+    // thinner top over the LEDs (e.g. for two color print)
+    translate([25,25,23.6]) cube([15,30,1]);
+    translate([0,93,23.6]) cube([12,15,1]);
+    translate([60,108,23.6]) cube([10,10,1]);
+    
+    // outside edges 45° about 0.5mm
+    translate([-9.2,-1.2,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([-9.2,-1.2+170,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([-9.2+140,-1.2,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([-9.2+140,-1.2+170,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([65,-1.2,25.25]) rotate([-45,0,0]) cube([150,1,1], center=true);
+    translate([65,-1.2+170,25.25]) rotate([-45,0,0]) cube([150,1,1], center=true);
+    translate([-9.2,85,25.25]) rotate([0,45,0]) cube([1,180,1], center=true);
+    translate([-9.2+140,85,25.25]) rotate([0,45,0]) cube([1,180,1], center=true);
 };
 screwHole(center=[120,170-2*1.2-7, 0.15], height=25.1);
 screwHole(center=[120,7, 0.15], height=25.1);

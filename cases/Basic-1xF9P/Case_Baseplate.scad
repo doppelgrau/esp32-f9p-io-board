@@ -95,6 +95,16 @@ difference(){
     // holes for the screws for the lid 
     translate([120,170-2*1.2-7, -3]) cylinder(h=10,r=2/2,center=true);
     translate([120,7, -3]) cylinder(h=10,r=2/2,center=true);    
+    
+    // outside edges 45° about 0.5mm
+    translate([-9.2,-1.2,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([-9.2,-1.2+170,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([-9.2+140,-1.2,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([-9.2+140,-1.2+170,10]) rotate([0,0,45]) cube([1,1,50], center=true);
+    translate([65,-1.2,-12]) rotate([-45,0,0]) cube([150,1,1], center=true);
+    translate([65,-1.2+170,-12]) rotate([-45,0,0]) cube([150,1,1], center=true);
+    translate([-9.2,85,-12]) rotate([0,45,0]) cube([1,180,1], center=true);
+    translate([-9.2+140,85,-12]) rotate([0,45,0]) cube([1,180,1], center=true);
 };
 // pcbHolder, tanslate all on the bottom layer
 translate([0,0,-10.8]) {
