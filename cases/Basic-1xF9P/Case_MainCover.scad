@@ -58,9 +58,9 @@ difference(){
     translate([72, 8.5,-0.01]) cube([8.5,4,8]);
     
     // thinner top over the LEDs (e.g. for two color print)
-    translate([25,25,23.6]) cube([15,30,1]);
-    translate([0,93,23.6]) cube([12,15,1]);
-    translate([60,108,23.6]) cube([10,10,1]);
+    translate([25,25,23.75]) cube([15,30,1]);
+    translate([0,93,23.75]) cube([12,15,1]);
+    translate([60,108,23.75]) cube([10,10,1]);
     
     // outside edges 45° about 0.5mm
     translate([-9.2,-1.2,10]) rotate([0,0,45]) cube([1,1,50], center=true);
