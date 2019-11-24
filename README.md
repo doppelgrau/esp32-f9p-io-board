@@ -18,7 +18,7 @@ This PCB is a versatile IO plattform that provides computing power (ESP32) and I
     - one uart (IO0/2) next to the arduino headers on two pins (J2) for the new simpleRTK2Blight. Since the two pins have a special meaning during boot, pulling TX to GND during startup results in the ESP going into programming mode.
     - one uart (IO15/16) for RS232 on the D-Sub connector J16
     - one uart (IO1/3) on the USB-Uart converter (J14) - Also supports programming with "RTS/DTR"
-- I2C (IO32/35)
+- I2C (IO32/33)
     - I2C with 3.3V logic level (J8 pin header, J13,17 [qwiic](https://www.sparkfun.com/qwiic) connector)
     - I2C with 5V logic level (J7 pin header)
     - internal used adresses:
